@@ -138,7 +138,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("message", "Already verified"));
         }
 
-        verificationTokenRepository.deleteByUser(user);
+        verificationTokenRepository.deleteByUserId(user.getId());
 
         String token = UUID.randomUUID().toString();
         VerificationToken vt = new VerificationToken();
@@ -172,7 +172,7 @@ public class AuthController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User account not found"));
 
         // Clear previous unexpired request tokens if present to prevent primary-key constraint overlaps
-        verificationTokenRepository.deleteByUser(user);
+        verificationTokenRepository.deleteByUserId(user.getId());
 
         String token = UUID.randomUUID().toString();
         VerificationToken vt = new VerificationToken();
