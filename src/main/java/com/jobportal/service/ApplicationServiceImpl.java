@@ -51,62 +51,39 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Override
     public void apply(String jobPublicId, ApplyRequest request) {
 
-        // =========================================================
-        // ✅ Logged-in Candidate
-        // =========================================================
-
+        // ================= Logged-in Candidate =================
         User candidate = getLoggedInUser();
 
-        // =========================================================
-        // ✅ Fetch Job
-        // =========================================================
-
+        // ================= Fetch Job =================
         Job job = jobRepo.findByPublicId(jobPublicId)
                 .orElseThrow(() -> new RuntimeException("Job not found"));
 
-        // =========================================================
-        // ✅ Prevent Duplicate Applications
-        // =========================================================
-
+        // ================= Prevent Duplicate =================
         if (applicationRepo.existsByJobAndCandidate(job, candidate)) {
             throw new RuntimeException("Already applied for this job");
         }
 
-        // =========================================================
-        // ✅ Student Profile Validation
-        // =========================================================
-
+        // ================= Student Profile =================
         StudentProfile profile = candidate.getStudentProfile();
 
         if (profile == null) {
             throw new RuntimeException("Student profile not found");
         }
 
-        // =========================================================
-        // ✅ Create Application Entity
-        // =========================================================
-
+        // ================= Create Application =================
         Application app = new Application();
 
         app.setCandidate(candidate);
         app.setJob(job);
 
-        // =========================================================
-        // ✅ Candidate Identity
-        // Profile OR Custom Alias
-        // =========================================================
-
+        // ================= Candidate Identity =================
         if (Boolean.TRUE.equals(request.getOverride())) {
 
-            if (request.getName() == null ||
-                    request.getName().trim().isEmpty()) {
-
+            if (request.getName() == null || request.getName().trim().isEmpty()) {
                 throw new RuntimeException("Custom name is required");
             }
 
-            if (request.getEmail() == null ||
-                    request.getEmail().trim().isEmpty()) {
-
+            if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
                 throw new RuntimeException("Custom email is required");
             }
 
@@ -114,17 +91,12 @@ public class ApplicationServiceImpl implements ApplicationService {
             app.setCandidateEmail(request.getEmail().trim());
 
         } else {
-
             app.setCandidateName(candidate.getName());
             app.setCandidateEmail(candidate.getEmail());
         }
 
-        // =========================================================
-        // ✅ Resume Handling
-        // =========================================================
-
-        String resume = (request.getResumeUrl() != null &&
-                !request.getResumeUrl().trim().isEmpty())
+        // ================= Resume =================
+        String resume = (request.getResumeUrl() != null && !request.getResumeUrl().trim().isEmpty())
                 ? request.getResumeUrl().trim()
                 : profile.getResumeUrl();
 
@@ -133,97 +105,83 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
 
         app.setResumeUrl(resume);
-//        app.setResumeUrl(resume);
-
         app.setResumeText(profile.getResumeText());
 
-        // =========================================================
-        // ✅ Cover Letter Validation
-        // =========================================================
-
+        // ================= Cover Letter =================
         String coverLetter = request.getCoverLetter();
 
-        if (coverLetter == null ||
-                coverLetter.trim().length() < 20) {
-
-            throw new RuntimeException(
-                    "Cover letter must be at least 20 characters"
-            );
+        if (coverLetter == null || coverLetter.trim().length() < 20) {
+            throw new RuntimeException("Cover letter must be at least 20 characters");
         }
 
         if (coverLetter.length() > 1000) {
-            throw new RuntimeException(
-                    "Cover letter exceeds 1000 characters"
-            );
+            throw new RuntimeException("Cover letter exceeds 1000 characters");
         }
 
         app.setCoverLetter(coverLetter.trim());
 
-        // =========================================================
-        // ✅ Extra Skills Cleanup
-        // =========================================================
-
-        List<String> extraSkills = Optional.ofNullable(
-                        request.getExtraSkills()
-                )
+        // ================= Extra Skills =================
+        List<String> extraSkills = Optional.ofNullable(request.getExtraSkills())
                 .orElse(new ArrayList<>())
                 .stream()
                 .filter(Objects::nonNull)
                 .map(String::trim)
-                .filter(skill -> !skill.isEmpty())
+                .filter(s -> !s.isEmpty())
                 .distinct()
                 .toList();
 
-        app.setExtraSkills(extraSkills);
-
-
-        // =========================================================
-        // ✅ Combine Profile Skills + Extra Skills
-        // =========================================================
-
-        List<String> userSkills = Optional.ofNullable(
-                        profile.getSkills()
-                )
-                .orElse(new ArrayList<>());
+        // ================= Core Skills =================
+        List<String> userSkills =
+                Optional.ofNullable(profile.getSkills())
+                        .orElse(Collections.emptyList())
+                        .stream()
+                        .map(StudentSkill::getSkill)
+                        .toList();
 
         Set<String> allSkills = new LinkedHashSet<>();
 
         userSkills.stream()
                 .filter(Objects::nonNull)
                 .map(String::trim)
-                .filter(skill -> !skill.isEmpty())
+                .filter(s -> !s.isEmpty())
                 .forEach(allSkills::add);
 
         allSkills.addAll(extraSkills);
 
-        app.setSkillsSnapshot(new ArrayList<>(allSkills));
+        // ================= CONVERT TO ENTITY (IMPORTANT FIX) =================
+        List<ApplicationSkill> skillEntities = allSkills.stream()
+                .map(skill -> {
+                    ApplicationSkill s = new ApplicationSkill();
+                    s.setSkill(skill);
+                    s.setApplication(app);
+                    return s;
+                })
+                .toList();
 
-        // =========================================================
-        // ✅ Match Score Calculation
-        // =========================================================
+        app.setSkills(skillEntities);
+
+        // ================= Match Score =================
+        List<String> jobSkills =
+                job.getSkillsRequired()
+                        .stream()
+                        .map(JobSkill::getSkill)
+                        .toList();
+
         double score = calculateScore(
                 userSkills,
                 extraSkills,
-                job.getSkillsRequired(),
+                jobSkills,
                 profile.getResumeText(),
                 job.getDescription()
         );
+
         app.setMatchScore(score);
 
-        // =========================================================
-        // ✅ Optional Fields
-        // Uncomment if Application entity contains them
-        // =========================================================
+        // ================= Optional Fields =================
+        app.setAvailability(request.getAvailability());
+        app.setWorkPreference(request.getWorkPreference());
 
-
- app.setAvailability(request.getAvailability());
-
-    app.setWorkPreference(request.getWorkPreference());
-
-        // =========================================================
-        // ✅ Save Application
-        // =========================================================
-//        NotificationService notificationService;
+        // ================= Save Notification =================
         notificationService.createNotification(
                 candidate,
                 "Application Submitted",
@@ -231,6 +189,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 NotificationType.JOB_APPLIED
         );
 
+        // ================= Save Application =================
         applicationRepo.save(app);
     }
 
@@ -322,14 +281,11 @@ public class ApplicationServiceImpl implements ApplicationService {
 
                     // Skills
                     .skills(
-                            app.getSkillsSnapshot() != null
-                                    ? app.getSkillsSnapshot()
-                                    : Collections.emptyList()
-                    )
-
-                    .extraSkills(
-                            app.getExtraSkills() != null
-                                    ? app.getExtraSkills()
+                            app.getSkills() != null
+                                    ? app.getSkills()
+                                    .stream()
+                                    .map(ApplicationSkill::getSkill)
+                                    .toList()
                                     : Collections.emptyList()
                     )
 
@@ -552,18 +508,21 @@ public class ApplicationServiceImpl implements ApplicationService {
         // =========================================================
 
         List<String> userSkills =
-                profile.getSkills() != null
-                        ? new ArrayList<>(profile.getSkills())
-                        : new ArrayList<>();
-
+                Optional.ofNullable(profile.getSkills())
+                        .orElse(Collections.emptyList())
+                        .stream()
+                        .map(StudentSkill::getSkill)
+                        .toList();
         // =========================================================
         // ✅ Job Skills
         // =========================================================
 
         List<String> jobSkills =
-                job.getSkillsRequired() != null
-                        ? job.getSkillsRequired()
-                        : new ArrayList<>();
+                Optional.ofNullable(job.getSkillsRequired())
+                        .orElse(Collections.emptyList())
+                        .stream()
+                        .map(JobSkill::getSkill)
+                        .toList();
 
         // =========================================================
         // ✅ Resume Text
@@ -606,14 +565,20 @@ public class ApplicationServiceImpl implements ApplicationService {
         StudentProfile profile = user.getStudentProfile();
 
         // ✅ Safe user skills
-        List<String> userSkills = (profile != null && profile.getSkills() != null)
-                ? profile.getSkills()
-                : new ArrayList<>();
+        List<String> userSkills =
+                Optional.ofNullable(profile)
+                        .map(StudentProfile::getSkills)
+                        .orElse(Collections.emptyList())
+                        .stream()
+                        .map(StudentSkill::getSkill)
+                        .toList();
 
-        // ✅ Safe job skills
-        List<String> jobSkills = job.getSkillsRequired() != null
-                ? job.getSkillsRequired()
-                : new ArrayList<>();
+        List<String> jobSkills =
+                Optional.ofNullable(job.getSkillsRequired())
+                        .orElse(Collections.emptyList())
+                        .stream()
+                        .map(JobSkill::getSkill)
+                        .toList();
 
         // ✅ Normalize user skills
         Set<String> userSet = userSkills.stream()
@@ -731,8 +696,14 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .jobId(app.getJob().getPublicId())
                 .status(app.getStatus().name())
                 .matchScore(app.getMatchScore())
-                .skills(app.getSkillsSnapshot())
-                .extraSkills(app.getExtraSkills())
+                .skills(
+                        app.getSkills() != null
+                                ? app.getSkills()
+                                .stream()
+                                .map(ApplicationSkill::getSkill)
+                                .toList()
+                                : Collections.emptyList()
+                )
                 .resumeUrl(app.getResumeUrl())
                 .coverLetter(app.getCoverLetter())
                 .appliedAt(app.getAppliedAt())
@@ -766,11 +737,17 @@ public class ApplicationServiceImpl implements ApplicationService {
         // ✅ 4. Get job from application
         Job job = app.getJob();
 
-        List<String> jobSkills = Optional.ofNullable(job.getSkillsRequired())
-                .orElse(new ArrayList<>());
-
-        List<String> appliedSkills = Optional.ofNullable(app.getSkillsSnapshot())
-                .orElse(new ArrayList<>());
+        List<String> jobSkills =
+                Optional.ofNullable(app.getJob().getSkillsRequired())
+                        .orElse(Collections.emptyList())
+                        .stream()
+                        .map(JobSkill::getSkill)
+                        .toList();
+        List<String> appliedSkills = Optional.ofNullable(app.getSkills())
+                .orElse(new ArrayList<>())
+                .stream()
+                .map(ApplicationSkill::getSkill)
+                .toList();
 
         // ✅ 5. Normalize applied skills
         Set<String> appliedSet = appliedSkills.stream()
@@ -807,8 +784,18 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .jobId(app.getJob().getPublicId())
                 .status(app.getStatus().name())
                 .matchScore(app.getMatchScore())
-                .skills(app.getSkillsSnapshot())
-                .extraSkills(app.getExtraSkills())
+                .skills(
+                        app.getSkills().stream()
+                                .filter(s -> s.getType() == SkillType.SNAPSHOT)
+                                .map(ApplicationSkill::getSkill)
+                                .toList()
+                )
+                .extraSkills(
+                        app.getSkills().stream()
+                                .filter(s -> s.getType() == SkillType.EXTRA)
+                                .map(ApplicationSkill::getSkill)
+                                .toList()
+                )
                 .resumeUrl(app.getResumeUrl())
                 .coverLetter(app.getCoverLetter())
                 .appliedAt(app.getAppliedAt())
@@ -824,11 +811,29 @@ public class ApplicationServiceImpl implements ApplicationService {
             throw new RuntimeException("Unauthorized");
         }
 
-        List<String> missingSkills = app.getJob().getSkillsRequired()
-                .stream()
-                .filter(skill -> app.getSkillsSnapshot() == null ||
-                        !app.getSkillsSnapshot().contains(skill))
-                .toList();
+        List<String> snapshotSkills =
+                Optional.ofNullable(app.getSkills())
+                        .orElse(List.of())
+                        .stream()
+                        .filter(s -> s.getType() == SkillType.SNAPSHOT)
+                        .map(ApplicationSkill::getSkill)
+                        .toList();
+
+        Set<String> snapshotSet =
+                snapshotSkills.stream()
+                        .map(String::toLowerCase)
+                        .collect(Collectors.toSet());
+        List<String> jobSkills =
+                Optional.ofNullable(app.getJob().getSkillsRequired())
+                        .orElse(List.of())
+                        .stream()
+                        .map(JobSkill::getSkill)
+                        .toList();
+
+        List<String> missingSkills =
+                jobSkills.stream()
+                        .filter(skill -> !snapshotSet.contains(skill.toLowerCase()))
+                        .toList();
         String companyName = Optional.ofNullable(app.getJob())
                 .map(Job::getCompany)
                 .map(Company::getName)
@@ -846,7 +851,12 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .coverLetter(app.getCoverLetter())
                 .availability(app.getAvailability())
                 .workPreference(app.getWorkPreference())
-                .extraSkills(app.getExtraSkills())
+                .extraSkills(
+                        app.getSkills().stream()
+                                .filter(s -> s.getType() == SkillType.EXTRA)
+                                .map(ApplicationSkill::getSkill)
+                                .toList()
+                )
                 .appliedAt(app.getAppliedAt())
                 .build();
     }
@@ -862,90 +872,66 @@ public class ApplicationServiceImpl implements ApplicationService {
     ) {
 
         // =========================================================
-        // ✅ Fetch ALL Applications
+        // ✅ Fetch ALL Applications (⚠️ consider replacing with DB filtering later)
         // =========================================================
-
-        List<Application> applications =
-                applicationRepo.findAll();
+        List<Application> applications = applicationRepo.findAll();
 
         // =========================================================
         // ✅ Apply Filters
         // =========================================================
-
         List<ApplicationCandidateResponse> filtered =
                 applications.stream()
 
-                        // Resume keyword filter
+                        // ================= Resume keyword filter =================
                         .filter(app -> {
+                            if (keyword == null || keyword.isBlank()) return true;
 
-                            if (keyword == null || keyword.isBlank()) {
-                                return true;
-                            }
-
-                            return app.getResumeText() != null
-                                    && app.getResumeText()
-                                    .toLowerCase()
-                                    .contains(keyword.toLowerCase());
+                            return app.getResumeText() != null &&
+                                    app.getResumeText().toLowerCase()
+                                            .contains(keyword.toLowerCase());
                         })
 
-                        // Match score filter
+                        // ================= Match score filter =================
                         .filter(app -> {
+                            if (minScore == null) return true;
 
-                            if (minScore == null) {
-                                return true;
-                            }
-
-                            return app.getMatchScore() != null
-                                    && app.getMatchScore() >= minScore;
+                            return app.getMatchScore() != null &&
+                                    app.getMatchScore() >= minScore;
                         })
 
-                        // Status filter
+                        // ================= Status filter =================
                         .filter(app -> {
+                            if (status == null || status.isBlank()) return true;
 
-                            if (status == null || status.isBlank()) {
-                                return true;
-                            }
-
-                            return app.getStatus() != null
-                                    && app.getStatus()
-                                    .name()
-                                    .equalsIgnoreCase(status);
+                            return app.getStatus() != null &&
+                                    app.getStatus().name().equalsIgnoreCase(status);
                         })
 
-                        // Skill filter
+                        // ================= Skill filter (FIXED) =================
                         .filter(app -> {
+                            if (skill == null || skill.isBlank()) return true;
 
-                            if (skill == null || skill.isBlank()) {
-                                return true;
-                            }
-
-                            return app.getSkillsSnapshot() != null
-                                    && app.getSkillsSnapshot()
-                                    .stream()
-                                    .anyMatch(s ->
-                                            s.equalsIgnoreCase(skill));
+                            return app.getSkills() != null &&
+                                    app.getSkills().stream()
+                                            .anyMatch(s ->
+                                                    s.getType() == SkillType.SNAPSHOT &&
+                                                            s.getSkill().equalsIgnoreCase(skill)
+                                            );
                         })
 
-                        // Sort by score DESC
+                        // ================= Sort by score DESC =================
                         .sorted((a, b) -> Double.compare(
-                                b.getMatchScore() != null
-                                        ? b.getMatchScore()
-                                        : 0,
-
-                                a.getMatchScore() != null
-                                        ? a.getMatchScore()
-                                        : 0
+                                b.getMatchScore() != null ? b.getMatchScore() : 0,
+                                a.getMatchScore() != null ? a.getMatchScore() : 0
                         ))
 
-                        // DTO Mapping
+                        // ================= DTO Mapping =================
                         .map(this::mapToCandidateResponse)
-
                         .toList();
 
         // =========================================================
         // ✅ Manual Pagination
         // =========================================================
-
         int start = page * size;
         int end = Math.min(start + size, filtered.size());
 
@@ -960,129 +946,70 @@ public class ApplicationServiceImpl implements ApplicationService {
                 filtered.size()
         );
     }
-
     private ApplicationCandidateResponse mapToCandidateResponse(Application app) {
 
         return ApplicationCandidateResponse.builder()
 
-                // =====================================================
-                // ✅ Application Info
-                // =====================================================
-
-                .applicationId(
-                        app.getPublicId()
-                )
-
-                // =====================================================
-                // ✅ Student Info
-                // =====================================================
+                .applicationId(app.getPublicId())
 
                 .studentPublicId(
-                        app.getCandidate() != null
-                                ? app.getCandidate().getPublicId()
-                                : null
+                        app.getCandidate() != null ? app.getCandidate().getPublicId() : null
                 )
 
                 .candidateName(
-                        app.getCandidateName() != null
-                                ? app.getCandidateName()
-                                : "N/A"
+                        app.getCandidateName() != null ? app.getCandidateName() : "N/A"
                 )
 
                 .email(
-                        app.getCandidateEmail() != null
-                                ? app.getCandidateEmail()
-                                : "N/A"
+                        app.getCandidateEmail() != null ? app.getCandidateEmail() : "N/A"
                 )
 
-                // =====================================================
-                // ✅ Job Info
-                // =====================================================
-
                 .jobPublicId(
-                        app.getJob() != null
-                                ? app.getJob().getPublicId()
-                                : null
+                        app.getJob() != null ? app.getJob().getPublicId() : null
                 )
 
                 .jobTitle(
-                        app.getJob() != null
-                                ? app.getJob().getTitle()
-                                : "N/A"
+                        app.getJob() != null ? app.getJob().getTitle() : "N/A"
                 )
 
                 .companyName(
-                        app.getJob() != null
-                                && app.getJob().getCompany() != null
+                        app.getJob() != null && app.getJob().getCompany() != null
                                 ? app.getJob().getCompany().getName()
                                 : "N/A"
                 )
 
-                // =====================================================
-                // ✅ Application Status
-                // =====================================================
-
                 .status(
-                        app.getStatus() != null
-                                ? app.getStatus().name()
-                                : "APPLIED"
+                        app.getStatus() != null ? app.getStatus().name() : "APPLIED"
                 )
-
-                // =====================================================
-                // ✅ Match Score
-                // =====================================================
 
                 .matchScore(
-                        app.getMatchScore() != null
-                                ? app.getMatchScore()
-                                : 0.0
+                        app.getMatchScore() != null ? app.getMatchScore() : 0.0
                 )
 
-                // =====================================================
-                // ✅ Skills
-                // =====================================================
-
+                // ================= FIXED SKILLS =================
                 .skills(
-                        app.getSkillsSnapshot() != null
-                                ? app.getSkillsSnapshot()
+                        app.getSkills() != null
+                                ? app.getSkills().stream()
+                                .filter(s -> s.getType() == SkillType.SNAPSHOT)
+                                .map(ApplicationSkill::getSkill)
+                                .toList()
                                 : Collections.emptyList()
                 )
 
                 .extraSkills(
-                        app.getExtraSkills() != null
-                                ? app.getExtraSkills()
+                        app.getSkills() != null
+                                ? app.getSkills().stream()
+                                .filter(s -> s.getType() == SkillType.EXTRA)
+                                .map(ApplicationSkill::getSkill)
+                                .toList()
                                 : Collections.emptyList()
                 )
 
-                // =====================================================
-                // ✅ Resume + Cover Letter
-                // =====================================================
+                .resumeUrl(app.getResumeUrl())
+                .coverLetter(app.getCoverLetter())
 
-                .resumeUrl(
-                        app.getResumeUrl()
-                )
-
-                .coverLetter(
-                        app.getCoverLetter()
-                )
-
-                // =====================================================
-                // ✅ Viewed Status
-                // =====================================================
-
-                .viewed(
-                        app.getViewed() != null
-                                ? app.getViewed()
-                                : false
-                )
-
-                // =====================================================
-                // ✅ Applied Time
-                // =====================================================
-
-                .appliedAt(
-                        app.getAppliedAt()
-                )
+                .viewed(app.getViewed() != null && app.getViewed())
+                .appliedAt(app.getAppliedAt())
 
                 .build();
     }
@@ -1101,85 +1028,77 @@ public class ApplicationServiceImpl implements ApplicationService {
         // =========================================================
         // ✅ Fetch Job
         // =========================================================
-
         Job job = jobRepo.findByPublicId(jobId)
                 .orElseThrow(() -> new RuntimeException("Job not found"));
 
         // =========================================================
         // ✅ Fetch Applications ONLY for Job
         // =========================================================
-
         List<Application> applications =
                 applicationRepo.findByJob(job);
 
         // =========================================================
-        // ✅ Apply Same Filters
+        // ✅ Apply Filters
         // =========================================================
-
         List<ApplicationCandidateResponse> filtered =
                 applications.stream()
 
+                        // Resume keyword filter
                         .filter(app -> {
+                            if (keyword == null || keyword.isBlank()) return true;
 
-                            if (keyword == null || keyword.isBlank()) {
-                                return true;
-                            }
-
-                            return app.getResumeText() != null
-                                    && app.getResumeText()
-                                    .toLowerCase()
-                                    .contains(keyword.toLowerCase());
+                            return app.getResumeText() != null &&
+                                    app.getResumeText()
+                                            .toLowerCase()
+                                            .contains(keyword.toLowerCase());
                         })
 
+                        // Match score filter
                         .filter(app -> {
+                            if (minScore == null) return true;
 
-                            if (minScore == null) {
-                                return true;
-                            }
-
-                            return app.getMatchScore() != null
-                                    && app.getMatchScore() >= minScore;
+                            return app.getMatchScore() != null &&
+                                    app.getMatchScore() >= minScore;
                         })
 
+                        // Status filter
                         .filter(app -> {
+                            if (status == null || status.isBlank()) return true;
 
-                            if (status == null || status.isBlank()) {
-                                return true;
-                            }
-
-                            return app.getStatus() != null
-                                    && app.getStatus()
-                                    .name()
-                                    .equalsIgnoreCase(status);
+                            return app.getStatus() != null &&
+                                    app.getStatus()
+                                            .name()
+                                            .equalsIgnoreCase(status);
                         })
 
+                        // ✅ SKILL FILTER (FIXED)
                         .filter(app -> {
+                            if (skill == null || skill.isBlank()) return true;
 
-                            if (skill == null || skill.isBlank()) {
-                                return true;
-                            }
-
-                            return app.getSkillsSnapshot() != null
-                                    && app.getSkillsSnapshot()
-                                    .stream()
-                                    .anyMatch(s ->
-                                            s.equalsIgnoreCase(skill));
+                            return app.getSkills() != null &&
+                                    app.getSkills().stream()
+                                            .filter(s -> s.getType() == SkillType.SNAPSHOT)
+                                            .map(ApplicationSkill::getSkill)
+                                            .filter(Objects::nonNull)
+                                            .anyMatch(s ->
+                                                    s.equalsIgnoreCase(skill)
+                                            );
                         })
 
+                        // Sort by match score DESC
                         .sorted((a, b) -> Double.compare(
-                                b.getMatchScore() != null
-                                        ? b.getMatchScore()
-                                        : 0,
-
-                                a.getMatchScore() != null
-                                        ? a.getMatchScore()
-                                        : 0
+                                b.getMatchScore() != null ? b.getMatchScore() : 0,
+                                a.getMatchScore() != null ? a.getMatchScore() : 0
                         ))
 
+                        // DTO mapping
                         .map(this::mapToCandidateResponse)
 
                         .toList();
 
+        // =========================================================
+        // ✅ Manual Pagination
+        // =========================================================
         int start = page * size;
         int end = Math.min(start + size, filtered.size());
 

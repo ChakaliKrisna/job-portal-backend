@@ -66,7 +66,17 @@ public class JobServiceImpl implements JobService {
         job.setExperienceLevel(dto.getExperienceLevel());
         job.setStatus(JobStatus.OPEN);
 
-        job.setSkillsRequired(dto.getSkillsRequired());
+        job.setSkillsRequired(
+                dto.getSkillsRequired()
+                        .stream()
+                        .map(skill -> {
+                            JobSkill js = new JobSkill();
+                            js.setSkill(skill);
+                            js.setJob(job); // VERY IMPORTANT (bi-directional mapping)
+                            return js;
+                        })
+                        .toList()
+        );
         job.setEducation(dto.getEducation());
         job.setClosingDate(dto.getClosingDate());
         job.setPostedDate(LocalDateTime.now());
@@ -135,7 +145,17 @@ public class JobServiceImpl implements JobService {
         job.setJobType(dto.getJobType());
         job.setWorkMode(dto.getWorkMode());
         job.setExperienceLevel(dto.getExperienceLevel());
-        job.setSkillsRequired(dto.getSkillsRequired());
+        job.setSkillsRequired(
+                dto.getSkillsRequired()
+                        .stream()
+                        .map(skill -> {
+                            JobSkill js = new JobSkill();
+                            js.setSkill(skill);
+                            js.setJob(job); // important for FK mapping
+                            return js;
+                        })
+                        .toList()
+        );
         job.setEducation(dto.getEducation());
         job.setOpenings(dto.getOpenings());
         job.setClosingDate(dto.getClosingDate());

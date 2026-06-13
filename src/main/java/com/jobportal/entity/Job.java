@@ -7,6 +7,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,10 +52,8 @@ public class Job {
 //    private String experienceLevel;
 
     // 🔹 REQUIREMENTS
-    @ElementCollection
-    @CollectionTable(name = "job_skills", joinColumns = @JoinColumn(name = "job_id"))
-    @Column(name = "skill")
-    private List<String> skillsRequired;
+    @OneToMany(mappedBy = "job", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<JobSkill> skillsRequired = new ArrayList<>();
     private String education;
 
     // 🔹 JOB INFO

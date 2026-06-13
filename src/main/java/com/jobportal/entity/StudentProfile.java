@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -26,10 +27,8 @@ public class StudentProfile {
     private String headline;
 
     // Academic & Skills
-    @ElementCollection
-    @CollectionTable(name = "student_skills", joinColumns = @JoinColumn(name = "profile_id"))
-    @Column(name = "skill")
-    private List<String> skills = new java.util.ArrayList<>();
+    @OneToMany(mappedBy = "profile", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<StudentSkill> skills = new ArrayList<>();
 
     private String education;
     private String experience;

@@ -11,6 +11,7 @@ import java.util.UUID;
 
 @Entity
 @Table(
+        name = "application",
         uniqueConstraints = {
                 @UniqueConstraint(columnNames = {"job_id", "candidate_id"})
         },
@@ -32,6 +33,7 @@ public class Application {
 
     @Column(unique = true, nullable = false)
     private String publicId;
+
     private String candidateName;
     private String candidateEmail;
 
@@ -45,16 +47,16 @@ public class Application {
     private LocalDateTime updatedAt;
 
     @JsonIgnore
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "job_id", nullable = false)
     private Job job;
 
     @JsonIgnore
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "candidate_id", nullable = false)
     private User candidate;
 
-    @Column(nullable = false) // if resume mandatory
+    @Column(nullable = false)
     private String resumeUrl;
 
     @Column(columnDefinition = "TEXT")
@@ -64,6 +66,16 @@ public class Application {
     private Boolean viewed = false;
 
     private String recruiterNotes;
+
+    // ✅ SINGLE SKILL ENTITY RELATION (CORRECT WAY)
+    @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ApplicationSkill> skills = new ArrayList<>();
+
+    private String availability;
+    private String workPreference;
+
+    @Column(columnDefinition = "TEXT")
+    private String resumeText;
 
     @PrePersist
     public void onCreate() {
@@ -78,34 +90,4 @@ public class Application {
     public void onUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
-//    @ElementCollection
-//    @CollectionTable(name = "application_skills", joinColumns = @JoinColumn(name = "application_id"))
-//    @Column(name = "skill")
-//    private List<String> skills = new ArrayList<>();
-
-    @ElementCollection
-    @CollectionTable(name = "application_skills", joinColumns = @JoinColumn(name = "application_id"))
-    @Column(name = "skill")
-    private List<String> skillsSnapshot;
-
-    @ElementCollection
-    @CollectionTable(name = "application_extra_skills", joinColumns = @JoinColumn(name = "application_id"))
-    @Column(name = "skill")
-    private List<String> extraSkills;
-
-    private String availability;
-
-    private String workPreference;
-    @Column(columnDefinition = "TEXT")
-    private String resumeText;
-
-
-//    @ElementCollection
-//    @CollectionTable(name = "application_extra_skills", joinColumns = @JoinColumn(name = "application_id"))
-//    @Column(name = "skill")
-//    private List<String> extraSkills;
-
-
-//    public void setSkillsSnapshot(List<String> skills) {
-//    }
 }

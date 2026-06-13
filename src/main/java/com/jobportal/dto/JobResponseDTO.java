@@ -1,6 +1,7 @@
 package com.jobportal.dto;
 
 import com.jobportal.entity.JobCategory;
+import com.jobportal.entity.JobSkill;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -85,7 +86,13 @@ public class JobResponseDTO {
                 ? job.getCategory().name()
                 : null;
 
-        this.skillsRequired = job.getSkillsRequired();
+        this.skillsRequired =
+                job.getSkillsRequired() != null
+                        ? job.getSkillsRequired()
+                        .stream()
+                        .map(JobSkill::getSkill)
+                        .toList()
+                        : List.of();
         this.education = job.getEducation();
         this.openings = job.getOpenings();
         this.postedDate = job.getPostedDate();

@@ -19,7 +19,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 //package com.jobportal.service;
@@ -151,9 +153,21 @@ public class UserServiceImpl implements UserService {
         }
 
         if (request.getSkills() != null) {
-            profile.getSkills().addAll(request.getSkills());
-        }
 
+            final StudentProfile finalProfile = profile;
+
+            List<StudentSkill> skills = request.getSkills()
+                    .stream()
+                    .map(skill -> {
+                        StudentSkill ss = new StudentSkill();
+                        ss.setSkill(skill);
+                        ss.setProfile(finalProfile);
+                        return ss;
+                    })
+                    .toList();
+
+            profile.getSkills().addAll(skills);
+        }
         // ===== PROJECTS =====
         if (profile.getProjects() == null) {
             profile.setProjects(new java.util.ArrayList<>());
@@ -242,7 +256,12 @@ public class UserServiceImpl implements UserService {
         response.setLocation(profile.getLocation());
         response.setHeadline(profile.getHeadline());
 
-        response.setSkills(profile.getSkills());
+        response.setSkills(
+                profile.getSkills()
+                        .stream()
+                        .map(StudentSkill::getSkill)
+                        .toList()
+        );
         response.setEducation(profile.getEducation());
         response.setExperience(profile.getExperience());
 
@@ -392,7 +411,13 @@ public class UserServiceImpl implements UserService {
 
         dto.setEmail(student.getEmail());
 
-        dto.setSkills(profile.getSkills());
+        dto.setSkills(
+                Optional.ofNullable(profile.getSkills())
+                        .orElse(Collections.emptyList())
+                        .stream()
+                        .map(StudentSkill::getSkill)
+                        .toList()
+        );
 
         dto.setEducation(profile.getEducation());
 
