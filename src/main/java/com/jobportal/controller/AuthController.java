@@ -9,17 +9,16 @@ import com.jobportal.repository.UserRepository;
 import com.jobportal.repository.VerificationTokenRepository;
 import com.jobportal.security.JwtUtil;
 import com.jobportal.service.EmailService;
-import jakarta.security.auth.message.AuthException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional; // Added for safe delete operations
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 @CrossOrigin(
@@ -43,7 +42,6 @@ public class AuthController {
     // ================= REGISTER =================
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-
         Role role;
         try {
             role = Role.valueOf("ROLE_" + request.getRole().toUpperCase());
@@ -65,7 +63,6 @@ public class AuthController {
         user.setPublicId(generatePublicId(role));
         user.setEnabled(false);
 
-        // ================= PROFILE =================
         if (role == Role.ROLE_STUDENT) {
             StudentProfile profile = new StudentProfile();
             profile.setUser(user);
@@ -91,9 +88,7 @@ public class AuthController {
 
         userRepository.save(user);
 
-        // ================= EMAIL TOKEN =================
         String token = UUID.randomUUID().toString();
-
         VerificationToken vt = new VerificationToken();
         vt.setToken(token);
         vt.setUser(user);
@@ -106,12 +101,7 @@ public class AuthController {
         }
 
         String link = frontendUrl + "/verify-email?token=" + token;
-
-        emailService.sendEmail(
-                user.getEmail(),
-                "Verify Your Email",
-                "Click to verify your account:\n" + link
-        );
+        emailService.sendEmail(user.getEmail(), "Verify Your Email", "Click to verify account:\n" + link);
 
         return ResponseEntity.ok(Map.of("message", "User registered successfully"));
     }
@@ -119,61 +109,38 @@ public class AuthController {
     // ================= LOGIN =================
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-
-        // 1. Check if user exists
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED,
-                        "User not found"
-                ));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
-        // 2. Check if password matches (Fixed to throw ResponseStatusException)
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "Invalid password"
-            );
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid password");
         }
 
-        // 3. Check if user is enabled
         if (!user.isEnabled()) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Verify email first"
-            );
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Verify email first");
         }
 
-        // 4. Generate JWT token
-        String token = JwtUtil.generateToken(
-                user.getEmail(),
-                user.getRole().name()
-        );
+        String token = JwtUtil.generateToken(user.getEmail(), user.getRole().name());
 
-        // 5. Return success response
         return ResponseEntity.ok(new LoginResponse(
-                token,
-                user.getEmail(),
-                user.getRole().name(),
-                user.getPublicId(),
-                user.getName()
+                token, user.getEmail(), user.getRole().name(), user.getPublicId(), user.getName()
         ));
     }
+
     // ================= RESEND EMAIL =================
+    @Transactional // Requires transaction state wrapper to safely drop entity structures from SQL rows
     @PostMapping("/resend-verification")
     public ResponseEntity<?> resendVerification(@RequestParam String email) {
-
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         if (user.isEnabled()) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("message", "Already verified"));
+            return ResponseEntity.badRequest().body(Map.of("message", "Already verified"));
         }
 
         verificationTokenRepository.deleteByUser(user);
 
         String token = UUID.randomUUID().toString();
-
         VerificationToken vt = new VerificationToken();
         vt.setToken(token);
         vt.setUser(user);
@@ -186,27 +153,28 @@ public class AuthController {
         }
 
         String link = frontendUrl + "/verify-email?token=" + token;
-
-        emailService.sendEmail(
-                user.getEmail(),
-                "Resend Verification Email",
-                "Click to verify:\n" + link
-        );
+        emailService.sendEmail(user.getEmail(), "Resend Verification Email", "Click to verify:\n" + link);
 
         return ResponseEntity.ok(Map.of("message", "Verification email sent"));
     }
 
     // ================= FORGOT PASSWORD =================
+    @Transactional
     @PostMapping("/forgot-password")
     public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
-
         String email = request.get("email");
+        if (email == null || email.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email parameters missing");
+        }
 
+        // Changed from RuntimeException to ResponseStatusException
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User account not found"));
+
+        // Clear previous unexpired request tokens if present to prevent primary-key constraint overlaps
+        verificationTokenRepository.deleteByUser(user);
 
         String token = UUID.randomUUID().toString();
-
         VerificationToken vt = new VerificationToken();
         vt.setToken(token);
         vt.setUser(user);
@@ -219,29 +187,28 @@ public class AuthController {
         }
 
         String resetLink = frontendUrl + "/reset-password?token=" + token;
-
-        emailService.sendEmail(
-                user.getEmail(),
-                "Reset Password",
-                "Click to reset password:\n" + resetLink
-        );
+        emailService.sendEmail(user.getEmail(), "Reset Password", "Click to reset password:\n" + resetLink);
 
         return ResponseEntity.ok(Map.of("message", "Reset link sent"));
     }
 
     // ================= RESET PASSWORD =================
+    @Transactional
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
-
         String token = request.get("token");
         String newPassword = request.get("newPassword");
 
+        if (token == null || newPassword == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Required fields missing");
+        }
+
         VerificationToken vt = verificationTokenRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Invalid token"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or unrecognized token"));
 
         if (vt.getExpiryDate().isBefore(LocalDateTime.now())) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("message", "Token expired"));
+            verificationTokenRepository.delete(vt);
+            return ResponseEntity.badRequest().body(Map.of("message", "Token expired"));
         }
 
         User user = vt.getUser();
@@ -253,7 +220,6 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "Password reset successful"));
     }
 
-    // ================= ROLE ID =================
     private String generatePublicId(Role role) {
         String prefix = switch (role) {
             case ROLE_STUDENT -> "STU";
@@ -261,10 +227,6 @@ public class AuthController {
             case ROLE_ADMIN -> "ADM";
         };
 
-        return prefix + "_" + UUID.randomUUID()
-                .toString()
-                .replace("-", "")
-                .substring(0, 6)
-                .toUpperCase();
+        return prefix + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
     }
 }
