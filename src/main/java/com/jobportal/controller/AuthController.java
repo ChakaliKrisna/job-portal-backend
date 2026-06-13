@@ -159,37 +159,40 @@ public class AuthController {
     }
 
     // ================= FORGOT PASSWORD =================
-    @Transactional
     @PostMapping("/forgot-password")
     public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        if (email == null || email.trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email parameters missing");
+        try {
+            String email = request.get("email");
+
+            if (email == null || email.trim().isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email missing");
+            }
+
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+            verificationTokenRepository.deleteByUserId(user.getId());
+
+            VerificationToken vt = new VerificationToken();
+            vt.setToken(UUID.randomUUID().toString());
+            vt.setUser(user);
+            vt.setExpiryDate(LocalDateTime.now().plusMinutes(30));
+
+            verificationTokenRepository.save(vt);
+
+            String frontendUrl = System.getenv("FRONTEND_URL");
+            if (frontendUrl == null) frontendUrl = "http://localhost:5173";
+
+            String resetLink = frontendUrl + "/reset-password?token=" + vt.getToken();
+
+            emailService.sendEmail(user.getEmail(), "Reset Password", resetLink);
+
+            return ResponseEntity.ok(Map.of("message", "Reset link sent"));
+
+        } catch (Exception e) {
+            e.printStackTrace(); // 🔥 THIS WILL SHOW REAL ERROR IN RENDER LOGS
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
         }
-
-        // Changed from RuntimeException to ResponseStatusException
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User account not found"));
-
-        // Clear previous unexpired request tokens if present to prevent primary-key constraint overlaps
-        verificationTokenRepository.deleteByUserId(user.getId());
-
-        String token = UUID.randomUUID().toString();
-        VerificationToken vt = new VerificationToken();
-        vt.setToken(token);
-        vt.setUser(user);
-        vt.setExpiryDate(LocalDateTime.now().plusMinutes(30));
-        verificationTokenRepository.save(vt);
-
-        String frontendUrl = System.getenv("FRONTEND_URL");
-        if (frontendUrl == null || frontendUrl.isEmpty()) {
-            frontendUrl = "http://localhost:5173";
-        }
-
-        String resetLink = frontendUrl + "/reset-password?token=" + token;
-        emailService.sendEmail(user.getEmail(), "Reset Password", "Click to reset password:\n" + resetLink);
-
-        return ResponseEntity.ok(Map.of("message", "Reset link sent"));
     }
 
     // ================= RESET PASSWORD =================
