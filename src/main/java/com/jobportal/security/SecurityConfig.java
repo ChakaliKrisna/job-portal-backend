@@ -46,6 +46,8 @@ public class SecurityConfig {
                         // ✅ ADD THIS// ✅ FIXED HERE
                         .requestMatchers("/auth/resend-verification/**").permitAll()
                         .requestMatchers("/auth/verify-email/**").permitAll()
+                        .requestMatchers("/auth/forgot-password**").permitAll()
+                        .requestMatchers("/auth/reset-password**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter,
