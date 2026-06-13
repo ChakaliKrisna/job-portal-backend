@@ -22,8 +22,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class JobServiceImpl implements JobService {
@@ -132,6 +135,14 @@ public class JobServiceImpl implements JobService {
             throw new AccessDeniedException("Access denied: You can only update your own jobs");
         }
 
+        System.out.println("Logged in email = " + email);
+        System.out.println("Current User ID = " + currentUser.getId());
+        System.out.println("Current User Role = " + currentUser.getRole());
+
+        System.out.println("Job Recruiter ID = " + job.getRecruiter().getId());
+        System.out.println("Job Recruiter Email = " + job.getRecruiter().getEmail());
+
+
         // ⚠️ Optional: Check company
         if (currentUser.getCompany() == null) {
             throw new BadRequestException("Recruiter must be associated with a company to update jobs");
@@ -145,17 +156,24 @@ public class JobServiceImpl implements JobService {
         job.setJobType(dto.getJobType());
         job.setWorkMode(dto.getWorkMode());
         job.setExperienceLevel(dto.getExperienceLevel());
-        job.setSkillsRequired(
-                dto.getSkillsRequired()
-                        .stream()
-                        .map(skill -> {
-                            JobSkill js = new JobSkill();
-                            js.setSkill(skill);
-                            js.setJob(job); // important for FK mapping
-                            return js;
-                        })
-                        .toList()
-        );
+        // get existing managed collection
+        List<JobSkill> existingSkills = job.getSkillsRequired();
+
+// clear old entries (Hibernate will handle orphan delete)
+        existingSkills.clear();
+
+// add new ones
+        List<JobSkill> newSkills = dto.getSkillsRequired()
+                .stream()
+                .map(skill -> {
+                    JobSkill js = new JobSkill();
+                    js.setSkill(skill);
+                    js.setJob(job);
+                    return js;
+                })
+                .toList();
+
+        existingSkills.addAll(newSkills);
         job.setEducation(dto.getEducation());
         job.setOpenings(dto.getOpenings());
         job.setClosingDate(dto.getClosingDate());
