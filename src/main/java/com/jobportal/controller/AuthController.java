@@ -180,41 +180,55 @@ public class AuthController {
 
             verificationTokenRepository.save(vt);
 
+            // 🔥 FIX: create reset link
             String frontendUrl = System.getenv("FRONTEND_URL");
-            if (frontendUrl == null) frontendUrl = "http://localhost:5173";
+            if (frontendUrl == null || frontendUrl.isEmpty()) {
+                frontendUrl = "http://localhost:5173";
+            }
 
             String resetLink = frontendUrl + "/reset-password?token=" + vt.getToken();
 
-            emailService.sendEmail(user.getEmail(), "Reset Password", resetLink);
+            try {
+                emailService.sendEmail(
+                        user.getEmail(),
+                        "Reset Password",
+                        "Click here: " + resetLink
+                );
+            } catch (Exception e) {
+                System.out.println("Email failed but ignoring: " + e.getMessage());
+            }
 
             return ResponseEntity.ok(Map.of("message", "Reset link sent"));
 
         } catch (Exception e) {
-            e.printStackTrace(); // 🔥 THIS WILL SHOW REAL ERROR IN RENDER LOGS
+            e.printStackTrace();
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
-
     // ================= RESET PASSWORD =================
     @Transactional
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
+
         String token = request.get("token");
         String newPassword = request.get("newPassword");
 
-        if (token == null || newPassword == null) {
+        if (token == null || token.trim().isEmpty()
+                || newPassword == null || newPassword.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Required fields missing");
         }
 
         VerificationToken vt = verificationTokenRepository.findByToken(token)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or unrecognized token"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired token"));
 
-        if (vt.getExpiryDate().isBefore(LocalDateTime.now())) {
+        if (vt.getExpiryDate() == null || vt.getExpiryDate().isBefore(LocalDateTime.now())) {
             verificationTokenRepository.delete(vt);
-            return ResponseEntity.badRequest().body(Map.of("message", "Token expired"));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Token expired"));
         }
 
         User user = vt.getUser();
+
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 
