@@ -118,19 +118,24 @@ public class AuthController {
 
     // ================= LOGIN =================
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) throws AuthException {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
 
+        // 1. Check if user exists
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.UNAUTHORIZED,
-                                "User not found"
-                        ));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "User not found"
+                ));
 
+        // 2. Check if password matches (Fixed to throw ResponseStatusException)
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new AuthException("Invalid password");
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid password"
+            );
         }
 
+        // 3. Check if user is enabled
         if (!user.isEnabled()) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
@@ -138,11 +143,13 @@ public class AuthController {
             );
         }
 
+        // 4. Generate JWT token
         String token = JwtUtil.generateToken(
                 user.getEmail(),
                 user.getRole().name()
         );
 
+        // 5. Return success response
         return ResponseEntity.ok(new LoginResponse(
                 token,
                 user.getEmail(),
