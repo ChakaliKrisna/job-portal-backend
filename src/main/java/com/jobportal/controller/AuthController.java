@@ -9,11 +9,13 @@ import com.jobportal.repository.UserRepository;
 import com.jobportal.repository.VerificationTokenRepository;
 import com.jobportal.security.JwtUtil;
 import com.jobportal.service.EmailService;
+import jakarta.security.auth.message.AuthException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -116,20 +118,14 @@ public class AuthController {
 
     // ================= LOGIN =================
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) throws AuthException {
 
-        Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
-
-        if (userOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "User not found"));
-        }
-
-        User user = userOpt.get();
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "Invalid password"));
+            throw new AuthException("Invalid password");
         }
 
         if (!user.isEnabled()) {
@@ -146,27 +142,6 @@ public class AuthController {
                 user.getPublicId(),
                 user.getName()
         ));
-    }
-
-    // ================= VERIFY EMAIL =================
-    @GetMapping("/verify-email")
-    public ResponseEntity<?> verifyEmail(@RequestParam String token) {
-
-        VerificationToken vt = verificationTokenRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Invalid token"));
-
-        if (vt.getExpiryDate().isBefore(LocalDateTime.now())) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("message", "Token expired"));
-        }
-
-        User user = vt.getUser();
-        user.setEnabled(true);
-        userRepository.save(user);
-
-        verificationTokenRepository.delete(vt);
-
-        return ResponseEntity.ok(Map.of("message", "Email verified successfully"));
     }
 
     // ================= RESEND EMAIL =================
