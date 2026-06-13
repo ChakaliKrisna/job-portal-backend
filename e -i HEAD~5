@@ -1,0 +1,39 @@
+[33m4e284b5[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m clean env config
+[33mfdabb43[m remove secrets and use env variables
+[33m960dcb7[m forgot password implemented database hosted in aivn
+[33m2fc2692[m[33m ([m[1;31morigin/main[m[33m)[m email verification only working on local machine
+[33m5f9da8c[m email verification api is completed
+[33mac6878f[m company api security featured and for job s also with out login for user
+[33m27be2c6[m company details updation by rectruter
+[33m1b4f138[m notifications section completeed
+[33ma74a2a3[m notifications for job status updtated and for applied are created
+[33mcb7afba[m solved unauthorized access for rectruter while opening studeint appliction missing kills
+[33mb43355b[m  profile redirecting
+[33mc203af2[m appliction redirection to student profile on recruter
+[33m6359d44[m candidate profile
+[33me3bf47d[m connecting wigh ui and the candidate profile end point created:
+[33m040b429[m working on the skills and resume text extractoin for the match score
+[33m56583d7[m appliction api filters completed
+[33m9d613b3[m apllictions for recruter filtering
+[33m02ba09f[m applicaiotn api for rectuter
+[33m37e1b54[m working on company section
+[33me1bb9cf[m application api complted almost integrtinging with fornt end
+[33m0dc3aca[m appliction extra skills fixed
+[33mba40315[m application api is working in postman
+[33m4d67abe[m serch by key word title job company skills perfectly working with  ui
+[33m864a0d1[m applicaiton api with fornt end completed
+[33md86a33c[m application respnose created and tesing completed connecting with ui
+[33mfa4a372[m fixed profile api with list skills and the projects as seperate entity and updtaed api
+[33m20c3619[m job categories fixed and created saving job api and testing now
+[33mca25b59[m student profile is completed and the working fine
+[33m1b9a825[m on application testing in postman not completed
+[33m1063ca2[m profile apis created need to test
+[33mab6b3d3[m applicaiton api not tested'
+[33m37ee521[m basic applicaion api is created and not tested all enums created and working fine
+[33ma8a5cf4[m job s and my jobs section working perfectly except filter s in font end
+[33mfd22872[m jobs ends points working fine
+[33m45af255[m testing on job serch sort complted and recturter while register company is setting
+[33ma0987ae[m jobapi completed working on the job duplicate section
+[33m04c22f2[m role conflict with db solved and job apis are created
+[33m5f0d6bd[m user respnosed from backend fixed
+[33ma616b58[m Initial commit - Job Portal with JWT Auth
