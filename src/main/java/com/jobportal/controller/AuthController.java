@@ -122,18 +122,26 @@ public class AuthController {
 
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() ->
-                        new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+                        new ResponseStatusException(
+                                HttpStatus.UNAUTHORIZED,
+                                "User not found"
+                        ));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new AuthException("Invalid password");
         }
 
         if (!user.isEnabled()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "Verify email first"));
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Verify email first"
+            );
         }
 
-        String token = JwtUtil.generateToken(user.getEmail(), user.getRole().name());
+        String token = JwtUtil.generateToken(
+                user.getEmail(),
+                user.getRole().name()
+        );
 
         return ResponseEntity.ok(new LoginResponse(
                 token,
@@ -143,7 +151,6 @@ public class AuthController {
                 user.getName()
         ));
     }
-
     // ================= RESEND EMAIL =================
     @PostMapping("/resend-verification")
     public ResponseEntity<?> resendVerification(@RequestParam String email) {
