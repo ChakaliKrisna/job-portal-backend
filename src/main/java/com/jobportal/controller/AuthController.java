@@ -1,6 +1,7 @@
 package com.jobportal.controller;
 
 import com.jobportal.dto.LoginRequest;
+import com.jobportal.dto.LoginResponse;
 import com.jobportal.dto.RegisterRequest;
 import com.jobportal.entity.*;
 import com.jobportal.repository.CompanyRepository;
@@ -9,37 +10,35 @@ import com.jobportal.repository.VerificationTokenRepository;
 import com.jobportal.security.JwtUtil;
 import com.jobportal.service.EmailService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-import com.jobportal.dto.LoginResponse;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-@CrossOrigin(origins = "http://localhost:5173") // or "*" for testing
+
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "https://your-frontend-domain.com"
+        },
+        allowCredentials = "true"
+)
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
-//@RequiredArgsConstructor
 public class AuthController {
 
-    @Autowired
     private final UserRepository userRepository;
-    @Autowired
     private final CompanyRepository companyRepo;
-    @Autowired
     private final VerificationTokenRepository verificationTokenRepository;
-    @Autowired
     private final EmailService emailService;
+    private final PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
+    // ================= REGISTER =================
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
 
@@ -64,158 +63,112 @@ public class AuthController {
         user.setPublicId(generatePublicId(role));
         user.setEnabled(false);
 
-        // ================= PROFILE CREATION =================
+        // ================= PROFILE =================
         if (role == Role.ROLE_STUDENT) {
             StudentProfile profile = new StudentProfile();
             profile.setUser(user);
             user.setStudentProfile(profile);
-
         }
 
         if (role == Role.ROLE_RECRUITER) {
-
             RecruiterProfile profile = new RecruiterProfile();
             profile.setUser(user);
             user.setRecruiterProfile(profile);
 
-            Optional<Company> existingCompany =
-                    companyRepo.findByNameIgnoreCase(
-                            request.getCompanyName()
-                    );
-
-            Company company;
-
-            if(existingCompany.isPresent()) {
-
-                company = existingCompany.get();
-
-            } else {
-
-                company = new Company();
-
-                company.setPublicId(
-                        "COMP-" + UUID.randomUUID()
-                                .toString()
-                                .substring(0,8)
-                );
-
-                company.setName(request.getCompanyName());
-//                company.setLogoUrl("/images/default-company.png");
-                company.setDescription("Company profile not updated yet.");
-                company = companyRepo.save(company);
-            }
+            Company company = companyRepo.findByNameIgnoreCase(request.getCompanyName())
+                    .orElseGet(() -> {
+                        Company c = new Company();
+                        c.setPublicId("COMP-" + UUID.randomUUID().toString().substring(0, 8));
+                        c.setName(request.getCompanyName());
+                        c.setDescription("Company profile not updated yet.");
+                        return companyRepo.save(c);
+                    });
 
             user.setCompany(company);
         }
 
-        User savedUser = userRepository.save(user);
+        userRepository.save(user);
 
-        // ================= TOKEN GENERATION =================
+        // ================= EMAIL TOKEN =================
         String token = UUID.randomUUID().toString();
 
         VerificationToken vt = new VerificationToken();
         vt.setToken(token);
-        vt.setUser(savedUser);
+        vt.setUser(user);
         vt.setExpiryDate(LocalDateTime.now().plusHours(24));
-
         verificationTokenRepository.save(vt);
 
-        // ================= EMAIL LINK =================
-        String link =
-                "http://localhost:8080/job-portal/auth/verify-email?token=" + token;
+        String frontendUrl = System.getenv("FRONTEND_URL");
+        if (frontendUrl == null || frontendUrl.isEmpty()) {
+            frontendUrl = "http://localhost:5173";
+        }
+
+        String link = frontendUrl + "/verify-email?token=" + token;
 
         emailService.sendEmail(
-                savedUser.getEmail(),
+                user.getEmail(),
                 "Verify Your Email",
-                "Click here to verify:\n" + link
+                "Click to verify your account:\n" + link
         );
 
         return ResponseEntity.ok(Map.of("message", "User registered successfully"));
     }
+
+    // ================= LOGIN =================
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-
-        System.out.println("trying to login");
 
         Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
 
         if (userOpt.isEmpty()) {
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "User not found"));
         }
 
-        User existing = userOpt.get();
+        User user = userOpt.get();
 
-        // ================= PASSWORD CHECK =================
-        if (!passwordEncoder.matches(request.getPassword(), existing.getPassword())) {
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Invalid password"));
         }
 
-        // ================= EMAIL VERIFICATION CHECK (IMPORTANT) =================
-        if (!existing.isEnabled()) {
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "Please verify your email before login"));
+        if (!user.isEnabled()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Verify email first"));
         }
 
-        // ================= JWT GENERATION =================
-        String token = JwtUtil.generateToken(
-                existing.getEmail(),
-                existing.getRole().name()
-        );
+        String token = JwtUtil.generateToken(user.getEmail(), user.getRole().name());
 
-        LoginResponse response = new LoginResponse(
+        return ResponseEntity.ok(new LoginResponse(
                 token,
-                existing.getEmail(),
-                existing.getRole().name(),
-                existing.getPublicId(),
-                existing.getName()
-        );
-
-        return ResponseEntity.ok(response);
-    }
-    public String generatePublicId(Role role) {
-
-        String prefix = "";
-
-        switch (role) {
-            case ROLE_STUDENT -> prefix = "STU";
-            case ROLE_RECRUITER -> prefix = "REC";
-            case ROLE_ADMIN -> prefix = "ADM";
-        }
-
-        return prefix + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
+                user.getEmail(),
+                user.getRole().name(),
+                user.getPublicId(),
+                user.getName()
+        ));
     }
 
-
+    // ================= VERIFY EMAIL =================
     @GetMapping("/verify-email")
     public ResponseEntity<?> verifyEmail(@RequestParam String token) {
 
         VerificationToken vt = verificationTokenRepository.findByToken(token)
                 .orElseThrow(() -> new RuntimeException("Invalid token"));
 
-        User user = vt.getUser();
-
-        // check expiry
         if (vt.getExpiryDate().isBefore(LocalDateTime.now())) {
             return ResponseEntity.badRequest()
-                    .body(Map.of(
-                            "message", "Token expired. Please resend verification email."
-                    ));
+                    .body(Map.of("message", "Token expired"));
         }
 
+        User user = vt.getUser();
         user.setEnabled(true);
         userRepository.save(user);
 
-        // optional: delete token after success
         verificationTokenRepository.delete(vt);
 
         return ResponseEntity.ok(Map.of("message", "Email verified successfully"));
+    }
 
-}
     // ================= RESEND EMAIL =================
     @PostMapping("/resend-verification")
     public ResponseEntity<?> resendVerification(@RequestParam String email) {
@@ -225,31 +178,104 @@ public class AuthController {
 
         if (user.isEnabled()) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("message", "User already verified"));
+                    .body(Map.of("message", "Already verified"));
         }
 
-        // delete old tokens
         verificationTokenRepository.deleteByUser(user);
 
-        // new token
         String token = UUID.randomUUID().toString();
 
         VerificationToken vt = new VerificationToken();
         vt.setToken(token);
         vt.setUser(user);
         vt.setExpiryDate(LocalDateTime.now().plusHours(24));
-
         verificationTokenRepository.save(vt);
 
-        String link =
-                "http://localhost:8080/job-portal/auth/verify-email?token=" + token;
+        String frontendUrl = System.getenv("FRONTEND_URL");
+        if (frontendUrl == null || frontendUrl.isEmpty()) {
+            frontendUrl = "http://localhost:5173";
+        }
+
+        String link = frontendUrl + "/verify-email?token=" + token;
 
         emailService.sendEmail(
                 user.getEmail(),
-                "Resend: Verify Your Email",
-                "Click here to verify:\n" + link
+                "Resend Verification Email",
+                "Click to verify:\n" + link
         );
 
         return ResponseEntity.ok(Map.of("message", "Verification email sent"));
+    }
+
+    // ================= FORGOT PASSWORD =================
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
+
+        String email = request.get("email");
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String token = UUID.randomUUID().toString();
+
+        VerificationToken vt = new VerificationToken();
+        vt.setToken(token);
+        vt.setUser(user);
+        vt.setExpiryDate(LocalDateTime.now().plusMinutes(30));
+        verificationTokenRepository.save(vt);
+
+        String frontendUrl = System.getenv("FRONTEND_URL");
+        if (frontendUrl == null || frontendUrl.isEmpty()) {
+            frontendUrl = "http://localhost:5173";
+        }
+
+        String resetLink = frontendUrl + "/reset-password?token=" + token;
+
+        emailService.sendEmail(
+                user.getEmail(),
+                "Reset Password",
+                "Click to reset password:\n" + resetLink
+        );
+
+        return ResponseEntity.ok(Map.of("message", "Reset link sent"));
+    }
+
+    // ================= RESET PASSWORD =================
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
+
+        String token = request.get("token");
+        String newPassword = request.get("newPassword");
+
+        VerificationToken vt = verificationTokenRepository.findByToken(token)
+                .orElseThrow(() -> new RuntimeException("Invalid token"));
+
+        if (vt.getExpiryDate().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Token expired"));
+        }
+
+        User user = vt.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        verificationTokenRepository.delete(vt);
+
+        return ResponseEntity.ok(Map.of("message", "Password reset successful"));
+    }
+
+    // ================= ROLE ID =================
+    private String generatePublicId(Role role) {
+        String prefix = switch (role) {
+            case ROLE_STUDENT -> "STU";
+            case ROLE_RECRUITER -> "REC";
+            case ROLE_ADMIN -> "ADM";
+        };
+
+        return prefix + "_" + UUID.randomUUID()
+                .toString()
+                .replace("-", "")
+                .substring(0, 6)
+                .toUpperCase();
     }
 }
