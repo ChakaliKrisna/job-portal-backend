@@ -67,23 +67,7 @@ Page<Application> findByCandidateAndStatus(User user, ApplicationStatus status, 
     long countByJob_Recruiter_IdAndStatus(Long recruiterId, ApplicationStatus applicationStatus);
 
     long countByJob_Recruiter_Id(Long recruiterId);
-    @Query("""
-SELECT new com.jobportal.dto.JobResponseDTO(
-    j.id,
-    j.publicId,
-    j.title,
-    j.location,
-    COUNT(a)
-)
-FROM Job j
-LEFT JOIN Application a ON a.job = j
-WHERE j.recruiter = :recruiter
-GROUP BY j
-""")
-    Page<JobResponseDTO> findRecruiterJobs(
-            @Param("recruiter") User recruiter,
-            Pageable pageable
-    );
+
     @Query("""
 SELECT new com.jobportal.dto.PlatformStatsProjection(
     (SELECT COUNT(u) FROM User u),
