@@ -1,5 +1,8 @@
 package com.jobportal.repository;
 
+import com.jobportal.dto.JobResponseDTO;
+import com.jobportal.dto.PlatformStatsProjection;
+import com.jobportal.dto.RecruiterAnalyticsProjection;
 import com.jobportal.entity.Application;
 import com.jobportal.entity.ApplicationStatus;
 import com.jobportal.entity.Job;
@@ -7,6 +10,8 @@ import com.jobportal.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -62,4 +67,52 @@ Page<Application> findByCandidateAndStatus(User user, ApplicationStatus status, 
     long countByJob_Recruiter_IdAndStatus(Long recruiterId, ApplicationStatus applicationStatus);
 
     long countByJob_Recruiter_Id(Long recruiterId);
+    @Query("""
+SELECT new com.jobportal.dto.JobResponseDTO(
+    j.id,
+    j.publicId,
+    j.title,
+    j.location,
+    COUNT(a)
+)
+FROM Job j
+LEFT JOIN Application a ON a.job = j
+WHERE j.recruiter = :recruiter
+GROUP BY j
+""")
+    Page<JobResponseDTO> findRecruiterJobs(
+            @Param("recruiter") User recruiter,
+            Pageable pageable
+    );
+    @Query("""
+SELECT new com.jobportal.dto.PlatformStatsProjection(
+    (SELECT COUNT(u) FROM User u),
+    (SELECT COUNT(u) FROM User u WHERE u.role='ROLE_RECRUITER'),
+    (SELECT COUNT(u) FROM User u WHERE u.role='ROLE_STUDENT'),
+    (SELECT COUNT(j) FROM Job j),
+    (SELECT COUNT(a) FROM Application a),
+    (SELECT COUNT(j) FROM Job j WHERE j.status='OPEN')
+)
+FROM User u
+WHERE u.id = (
+    SELECT MIN(u2.id)
+    FROM User u2
+)
+""")
+    PlatformStatsProjection getPlatformStats();
+    @Query("""
+SELECT new com.jobportal.dto.RecruiterAnalyticsProjection(
+    COUNT(DISTINCT j.id),
+    COUNT(DISTINCT CASE WHEN j.status='OPEN' THEN j.id END),
+    COUNT(a.id),
+    COUNT(CASE WHEN a.status='SHORTLISTED' THEN 1 END),
+    COUNT(CASE WHEN a.status='INTERVIEW' THEN 1 END)
+)
+FROM Job j
+LEFT JOIN Application a ON a.job.id = j.id
+WHERE j.recruiter.id = :recruiterId
+""")
+    RecruiterAnalyticsProjection getRecruiterAnalytics(
+            @Param("recruiterId") Long recruiterId
+    );
 }

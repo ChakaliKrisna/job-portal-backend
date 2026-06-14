@@ -10,12 +10,15 @@ import com.jobportal.dto.JobDTO;
 import com.jobportal.dto.JobResponseDTO;
 import com.jobportal.entity.*;
 import com.jobportal.repository.CompanyRepository;
+import com.jobportal.repository.JobRepository;
 import com.jobportal.service.JobService;
+import com.jobportal.service.JobSpecification;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -31,6 +34,8 @@ public class JobController {
     @Autowired
     private JobService service;
     @Autowired
+    private JobRepository jobRepo;
+    @Autowired
     CompanyRepository companyRepository;
 
     // ✅ CREATE JOB
@@ -42,50 +47,29 @@ public class JobController {
 
     // ✅ GET ALL JOBS
 //    @PreAuthorize("hasAnyRole('STUDENT','RECRUITER')")
-    @GetMapping
-    public ResponseEntity<Page<JobResponseDTO>> getAllJobs(
-            @RequestParam(required = false) String location,
-            @RequestParam(required = false) JobStatus jobStatus,
-            @RequestParam(required = false) Double minSalary,
-            @RequestParam(required = false) JobType jobType,
-            @RequestParam(required = false) WorkMode workMode,
-            @RequestParam(required = false) ExperienceLevel experienceLevel,
-            @RequestParam(required = false) JobCategory category, // ✅ ADD THIS
-            @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "postedDate,desc") String sort
-    ) {
+//    @Override
+    public Page<Job> getAllJobs(
+            String keyword,
+            String location,
+            JobType jobType,
+            WorkMode workMode,
+            ExperienceLevel experienceLevel,
+            JobStatus jobStatus,
+            Double minSalary,
+            JobCategory category,
+            Pageable pageable) {
 
-        String[] sortParams = sort.split(",");
-        Sort sorting = Sort.by(Sort.Direction.fromString(sortParams[1]), sortParams[0]);
+        Specification<Job> spec = Specification
+                .where(JobSpecification.searchKeyword(keyword))
+                .and(JobSpecification.hasLocation(location))
+                .and(JobSpecification.hasJobType(jobType))
+                .and(JobSpecification.hasWorkMode(workMode))
+                .and(JobSpecification.hasExperienceLevel(experienceLevel))
+                .and(JobSpecification.hasStatus(jobStatus))
+                .and(JobSpecification.hasCategory(category))
+                .and(JobSpecification.hasMinSalary(minSalary));
 
-        Pageable pageable = PageRequest.of(page, size, sorting);
-//        String location,
-//        JobType jobType,
-//        WorkMode workMode,
-//        String keyword,
-//        JobCategory category,
-//        Pageable pageable
-
-        return ResponseEntity.ok(
-                service.getAllJobs( keyword,
-                                location,
-                                jobType,
-                                workMode,
-                                experienceLevel,
-                                jobStatus,
-                                minSalary != null ? minSalary : 0.0,
-                                category,
-                                pageable
-                        )
-
-
-
-
-
-                        .map(service::convertToDTO)
-        );
+        return jobRepo.findAll(spec, pageable);
     }
 
     // ✅ UPDATE JOB

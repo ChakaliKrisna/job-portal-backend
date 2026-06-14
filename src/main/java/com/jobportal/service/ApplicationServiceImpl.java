@@ -1046,15 +1046,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Override
     public Page<JobResponseDTO> getRecruiterJobs(int page, int size) {
 
-        // =========================================================
-        // ✅ Logged-in Recruiter
-        // =========================================================
-
         User recruiter = getLoggedInUser();
-
-        // =========================================================
-        // ✅ Pagination
-        // =========================================================
 
         Pageable pageable = PageRequest.of(
                 page,
@@ -1062,40 +1054,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 Sort.by("postedDate").descending()
         );
 
-        // =========================================================
-        // ✅ Fetch Recruiter Jobs
-        // =========================================================
-
-        Page<Job> jobs =
-                jobRepo.findByRecruiter(recruiter, pageable);
-
-        // =========================================================
-        // ✅ Entity -> DTO Mapping
-        // =========================================================
-
-        return jobs.map(job -> {
-
-            RecruiterDTO recruiterDTO = new RecruiterDTO();
-
-            recruiterDTO.setPublicId(recruiter.getPublicId());
-            recruiterDTO.setName(recruiter.getName());
-            recruiterDTO.setEmail(recruiter.getEmail());
-
-            JobResponseDTO dto =
-                    new JobResponseDTO(job, recruiterDTO);
-
-            // =====================================================
-            // ✅ Applications Count
-            // =====================================================
-
-            long applicationsCount =
-                    applicationRepo.countByJob(job);
-
-            // if field exists
-            dto.setApplicationsCount(applicationsCount);
-
-            return dto;
-        });
+        return jobRepo.findRecruiterJobs(recruiter, pageable);
     }
 
     @Override
@@ -1151,63 +1110,40 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .build()
         );
     }
-    public RecruiterAnalyticsDTO getRecruiterAnalytics(String recruiterEmail) {
+    @Override
+    public RecruiterAnalyticsDTO getRecruiterAnalytics(
+            String recruiterEmail
+    ) {
 
         User recruiter = userRepo.findByEmail(recruiterEmail)
-                .orElseThrow(() -> new RuntimeException("Recruiter not found"));
+                .orElseThrow(() ->
+                        new RuntimeException("Recruiter not found"));
 
-        Long recruiterId = recruiter.getId();
-
-        // total jobs
-        long totalJobs = jobRepo.countByRecruiter_Id(recruiterId);
-
-        // active jobs
-        long activeJobs = jobRepo.countByRecruiter_IdAndStatus(
-                recruiterId,
-                JobStatus.OPEN
-        );
-
-        // applications
-        long totalApplications = applicationRepo.countByJob_Recruiter_Id(recruiterId);
-
-        // shortlisted
-        long shortlisted = applicationRepo.countByJob_Recruiter_IdAndStatus(
-                recruiterId,
-                ApplicationStatus.SHORTLISTED
-        );
-
-        // interviews
-        long interviews = applicationRepo.countByJob_Recruiter_IdAndStatus(
-                recruiterId,
-                ApplicationStatus.INTERVIEW
-        );
+        RecruiterAnalyticsProjection stats =
+                applicationRepo.getRecruiterAnalytics(
+                        recruiter.getId());
 
         return new RecruiterAnalyticsDTO(
-                totalJobs,
-                activeJobs,
-                totalApplications,
-                shortlisted,
-                interviews
+                stats.totalJobs(),
+                stats.activeJobs(),
+                stats.totalApplications(),
+                stats.shortlisted(),
+                stats.interviews()
         );
     }
+    @Override
     public PlatformStatsDTO getPlatformStats() {
 
-        long totalUsers = userRepo.count();
-        long totalRecruiters = userRepo.countByRole(Role.ROLE_RECRUITER);
-        long totalStudents = userRepo.countByRole(Role.ROLE_RECRUITER);
-
-        long totalJobs = jobRepo.count();
-        long activeJobs = jobRepo.countByStatus(JobStatus.OPEN);
-
-        long totalApplications = applicationRepo.count();
+        PlatformStatsProjection stats =
+                applicationRepo.getPlatformStats();
 
         return new PlatformStatsDTO(
-                totalUsers,
-                totalRecruiters,
-                totalStudents,
-                totalJobs,
-                totalApplications,
-                activeJobs
+                stats.totalUsers(),
+                stats.totalRecruiters(),
+                stats.totalStudents(),
+                stats.totalJobs(),
+                stats.totalApplications(),
+                stats.activeJobs()
         );
     }
 

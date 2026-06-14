@@ -49,7 +49,6 @@ public class JobResponseDTO {
     private String companyWebsite;
 //    private Integer applicationsCount;
 
-    // A clean constructor to use in your Service/Mapper
     public JobResponseDTO(Job job, RecruiterDTO recruiterDTO) {
 
         this.publicId = job.getPublicId();
@@ -86,13 +85,9 @@ public class JobResponseDTO {
                 ? job.getCategory().name()
                 : null;
 
-        this.skillsRequired =
-                job.getSkillsRequired() != null
-                        ? job.getSkillsRequired()
-                        .stream()
-                        .map(JobSkill::getSkill)
-                        .toList()
-                        : List.of();
+        // Avoid N+1 queries
+        this.skillsRequired = List.of();
+
         this.education = job.getEducation();
         this.openings = job.getOpenings();
         this.postedDate = job.getPostedDate();
@@ -100,10 +95,8 @@ public class JobResponseDTO {
         this.description = job.getDescription();
         this.recruiter = recruiterDTO;
 
-        this.applicationsCount =
-                job.getApplications() != null
-                        ? (long) job.getApplications().size()
-                        : 0;
+        // Avoid loading applications collection
+        this.applicationsCount = 0L;
     }
 
 

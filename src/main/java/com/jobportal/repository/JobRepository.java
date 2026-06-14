@@ -1,11 +1,14 @@
 package com.jobportal.repository;
 
+import com.jobportal.dto.JobResponseDTO;
 import com.jobportal.entity.Company;
 import com.jobportal.entity.Job;
 import com.jobportal.entity.JobStatus;
 import com.jobportal.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -36,5 +39,12 @@ Page<Job> findByCompany_PublicId(
     long countByRecruiter_Id(Long recruiterId);
 
     long countByStatus(JobStatus jobStatus);
+
+    Page<JobResponseDTO> findRecruiterJobs(User recruiter, Pageable pageable);
+    @EntityGraph(attributePaths = {
+            "company",
+            "recruiter"
+    })
+    Page<Job> findAll(Specification<Job> spec, Pageable pageable);
 //    }
 }

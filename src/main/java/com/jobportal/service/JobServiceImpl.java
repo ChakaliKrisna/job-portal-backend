@@ -226,10 +226,6 @@ public class JobServiceImpl implements JobService {
 
     public JobResponseDTO convertToDTO(Job job) {
 
-        String companyName = (job.getCompany() != null)
-                ? job.getCompany().getName()
-                : "N/A";
-
         RecruiterDTO recruiterDTO = null;
 
         if (job.getRecruiter() != null) {
@@ -240,10 +236,8 @@ public class JobServiceImpl implements JobService {
             );
         }
 
-
-        // Use the constructor we just created
         return new JobResponseDTO(job, recruiterDTO);
-        }
+    }
 
     @Override
     public Page<Job> getAllJobs(String keyword, String location, JobType jobType, WorkMode workMode, ExperienceLevel experienceLevel, JobStatus JobStatus, Double minSalary, JobCategory category, Pageable pageable) {
