@@ -1027,85 +1027,67 @@ public class ApplicationServiceImpl implements ApplicationService {
     ) {
 
         // =========================================================
-        // ✅ Fetch Job
+        // Fetch Job
         // =========================================================
         Job job = jobRepo.findByPublicId(jobId)
                 .orElseThrow(() -> new RuntimeException("Job not found"));
 
         // =========================================================
-        // ✅ Fetch Applications ONLY for Job
+        // Fetch Applications
         // =========================================================
-        List<Application> applications =
-                applicationRepo.findByJob(job);
-
-        // =========================================================
-        // ✅ Apply Filters
-        // =========================================================
-        List<ApplicationCandidateResponse> filtered =
-                applications.stream()
-
-                        // Resume keyword filter
-                        .filter(app -> {
-                            if (keyword == null || keyword.isBlank()) return true;
-
-                            return app.getResumeText() != null &&
-                                    app.getResumeText()
-                                            .toLowerCase()
-                                            .contains(keyword.toLowerCase());
-                        })
-
-                        // Match score filter
-                        .filter(app -> {
-                            if (minScore == null) return true;
-
-                            return app.getMatchScore() != null &&
-                                    app.getMatchScore() >= minScore;
-                        })
-
-                        // Status filter
-                        .filter(app -> {
-                            if (status == null || status.isBlank()) return true;
-
-                            return app.getStatus() != null &&
-                                    app.getStatus()
-                                            .name()
-                                            .equalsIgnoreCase(status);
-                        })
-
-                        // ✅ SKILL FILTER (FIXED)
-                        .filter(app -> {
-                            if (skill == null || skill.isBlank()) return true;
-
-                            return app.getSkills() != null &&
-                                    app.getSkills().stream()
-                                            .filter(s -> s.getType() == SkillType.SNAPSHOT)
-                                            .map(ApplicationSkill::getSkill)
-                                            .filter(Objects::nonNull)
-                                            .anyMatch(s ->
-                                                    s.equalsIgnoreCase(skill)
-                                            );
-                        })
-
-                        // Sort by match score DESC
-                        .sorted((a, b) -> Double.compare(
-                                b.getMatchScore() != null ? b.getMatchScore() : 0,
-                                a.getMatchScore() != null ? a.getMatchScore() : 0
-                        ))
-
-                        // DTO mapping
-                        .map(this::mapToCandidateResponse)
-
-                        .toList();
+        List<Application> applications = applicationRepo.findByJob(job);
 
         // =========================================================
-        // ✅ Manual Pagination
+        // Filter + Map
+        // =========================================================
+        List<ApplicationCandidateResponse> filtered = applications.stream()
+
+                // keyword (resume)
+                .filter(app -> keyword == null || keyword.isBlank()
+                        || (app.getResumeText() != null &&
+                        app.getResumeText().toLowerCase().contains(keyword.toLowerCase()))
+                )
+
+                // match score
+                .filter(app -> minScore == null
+                        || (app.getMatchScore() != null && app.getMatchScore() >= minScore)
+                )
+
+                // status
+                .filter(app -> status == null || status.isBlank()
+                        || app.getStatus().name().equalsIgnoreCase(status)
+                )
+
+                // skill filter (FIXED)
+                .filter(app -> {
+                    if (skill == null || skill.isBlank()) return true;
+
+                    return app.getSkills() != null &&
+                            app.getSkills().stream()
+                                    .map(ApplicationSkill::getSkill)
+                                    .anyMatch(s -> s.equalsIgnoreCase(skill));
+                })
+
+                // sort
+                .sorted((a, b) -> Double.compare(
+                        b.getMatchScore() == null ? 0 : b.getMatchScore(),
+                        a.getMatchScore() == null ? 0 : a.getMatchScore()
+                ))
+
+                // DTO mapping
+                .map(this::mapToCandidateResponse)
+
+                .toList();
+
+        // =========================================================
+        // Pagination
         // =========================================================
         int start = page * size;
         int end = Math.min(start + size, filtered.size());
 
         List<ApplicationCandidateResponse> paginated =
                 start >= filtered.size()
-                        ? Collections.emptyList()
+                        ? List.of()
                         : filtered.subList(start, end);
 
         return new PageImpl<>(
@@ -1114,7 +1096,6 @@ public class ApplicationServiceImpl implements ApplicationService {
                 filtered.size()
         );
     }
-
     private String simplifySkill(String skill) {
 
         skill = normalize(skill);

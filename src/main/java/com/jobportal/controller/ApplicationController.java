@@ -143,12 +143,18 @@ public class ApplicationController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String skill,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            Authentication authentication
+            @RequestParam(defaultValue = "10") int size
     ) {
         return ResponseEntity.ok(
-                service.filterCandidatesByJob(jobId, authentication.getName(),
-                        keyword, minScore, status, skill, page, size)
+                service.filterCandidatesByJob(
+                        jobId,
+                        keyword,
+                        minScore,
+                        status,
+                        skill,
+                        page,
+                        size
+                )
         );
     }
 
