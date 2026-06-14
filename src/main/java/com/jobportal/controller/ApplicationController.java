@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -190,14 +191,13 @@ public class ApplicationController {
         return ResponseEntity.ok(service.getPlatformStats());
     }
 
-
     @GetMapping("/jobs/{jobId}/match-score")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<Double> getMatchScore(
-            @PathVariable String jobId) {
-
+            @PathVariable String jobId
+    ) {
         return ResponseEntity.ok(
-                service.getMatchScore(jobId)
+                service.calculateMatchScore(jobId, Collections.emptyList())
         );
     }
 }
