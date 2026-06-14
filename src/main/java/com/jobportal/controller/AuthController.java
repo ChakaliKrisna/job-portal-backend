@@ -136,24 +136,29 @@ public class AuthController {
 
         // 1. Find user
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() ->
-                        new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+                .orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "User not found"));
+        }
 
         // 2. Check password
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid password");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Invalid password"));
         }
 
-        // 3. (IMPORTANT CHANGE)
-        // Email verification is temporarily NOT blocking login
+        // 3. (optional email verification)
         // if (!user.isEnabled()) {
-        //     throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Verify email first");
+        //     return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        //             .body(Map.of("message", "Verify email first"));
         // }
 
         // 4. Generate JWT
         String token = JwtUtil.generateToken(user.getEmail(), user.getRole().name());
 
-        // 5. Response
+        // 5. Success response
         return ResponseEntity.ok(new LoginResponse(
                 token,
                 user.getEmail(),
