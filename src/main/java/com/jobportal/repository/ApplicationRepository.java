@@ -58,4 +58,8 @@ Page<Application> findByCandidateAndStatus(User user, ApplicationStatus status, 
     );
 
     Page<Application> findByJob_Recruiter_Id(Long id, Pageable pageable);
+
+    long countByJob_Recruiter_IdAndStatus(Long recruiterId, ApplicationStatus applicationStatus);
+
+    long countByJob_Recruiter_Id(Long recruiterId);
 }

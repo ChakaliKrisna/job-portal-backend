@@ -2,6 +2,7 @@ package com.jobportal.repository;
 
 import com.jobportal.entity.Company;
 import com.jobportal.entity.Job;
+import com.jobportal.entity.JobStatus;
 import com.jobportal.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -29,5 +30,9 @@ Page<Job> findByCompany_PublicId(
         String publicId,
         Pageable pageable
 );
+
+    long countByRecruiter_IdAndStatus(Long recruiterId, JobStatus jobStatus);
+
+    long countByRecruiter_Id(Long recruiterId);
 //    }
 }

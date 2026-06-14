@@ -174,4 +174,11 @@ public class ApplicationController {
     ) {
         return ResponseEntity.ok(service.getRecruiterJobs(page, size));
     }
+    @GetMapping("/dashboard/analytics")
+    @PreAuthorize("hasRole('RECRUITER')")
+    public ResponseEntity<RecruiterAnalyticsDTO> getDashboardAnalytics(Authentication auth) {
+
+        String email = auth.getName();
+        return ResponseEntity.ok(service.getRecruiterAnalytics(email));
+    }
 }

@@ -1,10 +1,7 @@
 package com.jobportal.service;
 
 import com.jobportal.controller.ApplicationDetailsDto;
-import com.jobportal.dto.ApplicationCandidateResponse;
-import com.jobportal.dto.ApplicationResponse;
-import com.jobportal.dto.ApplyRequest;
-import com.jobportal.dto.JobResponseDTO;
+import com.jobportal.dto.*;
 import com.jobportal.entity.Application;
 import com.jobportal.entity.ApplicationStatus;
 import com.jobportal.entity.User;
@@ -77,6 +74,8 @@ public interface ApplicationService {
     Page<JobResponseDTO> getRecruiterJobs(int page, int size);
 
     Page<ApplicationCandidateResponse> getApplicationsByJobForRecruiter(String jobId, String name, int page, int size);
+
+    RecruiterAnalyticsDTO getRecruiterAnalytics(String email);
 
 //    Page<JobResponseDTO> getRecruiterJobs(int page, int size);
 }

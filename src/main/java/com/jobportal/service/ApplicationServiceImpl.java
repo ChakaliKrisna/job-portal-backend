@@ -1189,4 +1189,46 @@ public class ApplicationServiceImpl implements ApplicationService {
 
                 .build()
         );
-    }}
+    }
+    public RecruiterAnalyticsDTO getRecruiterAnalytics(String recruiterEmail) {
+
+        User recruiter = userRepo.findByEmail(recruiterEmail)
+                .orElseThrow(() -> new RuntimeException("Recruiter not found"));
+
+        Long recruiterId = recruiter.getId();
+
+        // total jobs
+        long totalJobs = jobRepo.countByRecruiter_Id(recruiterId);
+
+        // active jobs
+        long activeJobs = jobRepo.countByRecruiter_IdAndStatus(
+                recruiterId,
+                JobStatus.OPEN
+        );
+
+        // applications
+        long totalApplications = applicationRepo.countByJob_Recruiter_Id(recruiterId);
+
+        // shortlisted
+        long shortlisted = applicationRepo.countByJob_Recruiter_IdAndStatus(
+                recruiterId,
+                ApplicationStatus.SHORTLISTED
+        );
+
+        // interviews
+        long interviews = applicationRepo.countByJob_Recruiter_IdAndStatus(
+                recruiterId,
+                ApplicationStatus.INTERVIEW
+        );
+
+        return new RecruiterAnalyticsDTO(
+                totalJobs,
+                activeJobs,
+                totalApplications,
+                shortlisted,
+                interviews
+        );
+    }
+
+
+}
