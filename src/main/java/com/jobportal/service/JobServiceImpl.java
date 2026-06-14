@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 //import com.jobportal.specification.JobSpecification;
@@ -378,6 +379,30 @@ public class JobServiceImpl implements JobService {
 
         return jobs.map(this::convertToDTO);
         }
+    public Page<JobResponseDTO> getRecruiterJobs(int page, int size) {
+
+        User recruiter = getLoggedInUser();
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by("postedDate").descending()
+        );
+
+        return jobRepo.findByRecruiter(recruiter, pageable)
+                .map(this::convertToDTO);
+    }
+    private User getLoggedInUser() {
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        String email = authentication.getName();
+
+        return userRepo.findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+    }
     }
 
 

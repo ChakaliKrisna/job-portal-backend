@@ -71,13 +71,19 @@ public interface ApplicationService {
             int size
     );
 
-    Page<JobResponseDTO> getRecruiterJobs(int page, int size);
+//    Page<JobResponseDTO> getRecruiterJobs(int page, int size);
 
     Page<ApplicationCandidateResponse> getApplicationsByJobForRecruiter(String jobId, String name, int page, int size);
 
     RecruiterAnalyticsDTO getRecruiterAnalytics(String email);
 
     PlatformStatsDTO getPlatformStats();
+
+//    Page<JobResponseDTO> getRecruiterJobs(int page, int size);
+
+//    Page<JobResponseDTO> getRecruiterJobs(int page, int size);
+
+//    Page<JobResponseDTO> getRecruiterJobs(int page, int size);
 
 //    Page<JobResponseDTO> getRecruiterJobs(int page, int size);
 }

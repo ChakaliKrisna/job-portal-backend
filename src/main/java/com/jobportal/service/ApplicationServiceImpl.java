@@ -1043,19 +1043,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         return skill;
     }
 
-    @Override
-    public Page<JobResponseDTO> getRecruiterJobs(int page, int size) {
 
-        User recruiter = getLoggedInUser();
-
-        Pageable pageable = PageRequest.of(
-                page,
-                size,
-                Sort.by("postedDate").descending()
-        );
-
-        return jobRepo.findRecruiterJobs(recruiter, pageable);
-    }
 
     @Override
     public Page<ApplicationCandidateResponse> getApplicationsByJobForRecruiter(
@@ -1146,6 +1134,8 @@ public class ApplicationServiceImpl implements ApplicationService {
                 stats.activeJobs()
         );
     }
+//    @Override
+
 
 
 }

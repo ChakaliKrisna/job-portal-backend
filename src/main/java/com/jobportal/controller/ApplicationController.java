@@ -5,6 +5,7 @@ import com.jobportal.entity.ApplicationStatus;
 import com.jobportal.entity.User;
 import com.jobportal.repository.UserRepository;
 import com.jobportal.service.ApplicationService;
+import com.jobportal.service.JobService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +25,9 @@ public class ApplicationController {
 
     @Autowired
     private UserRepository userRepo;
+
+    @Autowired
+    private JobService jobService;
 
     // =========================================================
     // ✅ STUDENT: APPLY JOB
@@ -173,7 +177,7 @@ public class ApplicationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return ResponseEntity.ok(service.getRecruiterJobs(page, size));
+        return ResponseEntity.ok(jobService.getRecruiterJobs(page, size));
     }
 
 

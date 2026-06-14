@@ -61,6 +61,8 @@ Page<Job> getAllJobs(
 );
 
     Page<JobResponseDTO> getJobsByCompany(String publicId, int page, int size);
+
+    Page<JobResponseDTO> getRecruiterJobs(int page, int size);
 //    location,
 //    jobType,
 //    workMode,

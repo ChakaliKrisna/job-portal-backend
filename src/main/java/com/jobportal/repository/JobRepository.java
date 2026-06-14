@@ -71,5 +71,5 @@ public interface JobRepository
             Pageable pageable
     );
 
-    Page<JobResponseDTO> findRecruiterJobs(User recruiter, Pageable pageable);
+//    Page<JobResponseDTO> findRecruiterJobs(User recruiter, Pageable pageable);
 }
