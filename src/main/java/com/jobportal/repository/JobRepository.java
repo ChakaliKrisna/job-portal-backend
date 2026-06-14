@@ -70,4 +70,6 @@ public interface JobRepository
             Specification<Job> spec,
             Pageable pageable
     );
+
+    Page<JobResponseDTO> findRecruiterJobs(User recruiter, Pageable pageable);
 }
