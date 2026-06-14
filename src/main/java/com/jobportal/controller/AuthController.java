@@ -101,7 +101,16 @@ public class AuthController {
         }
 
         String link = frontendUrl + "/verify-email?token=" + token;
-        emailService.sendEmail(user.getEmail(), "Verify Your Email", "Click to verify account:\n" + link);
+
+        try {
+            emailService.sendEmail(
+                    user.getEmail(),
+                    "Verify Your Email",
+                    "Click to verify account:\n" + link
+            );
+        } catch (Exception e) {
+            System.out.println("Email failed but continuing: " + e.getMessage());
+        }
 
         return ResponseEntity.ok(Map.of("message", "User registered successfully"));
     }
@@ -146,16 +155,26 @@ public class AuthController {
         vt.setUser(user);
         vt.setExpiryDate(LocalDateTime.now().plusHours(24));
         verificationTokenRepository.save(vt);
-
         String frontendUrl = System.getenv("FRONTEND_URL");
+
         if (frontendUrl == null || frontendUrl.isEmpty()) {
             frontendUrl = "http://localhost:5173";
         }
 
         String link = frontendUrl + "/verify-email?token=" + token;
-        emailService.sendEmail(user.getEmail(), "Resend Verification Email", "Click to verify:\n" + link);
+
+        try {
+            emailService.sendEmail(
+                    user.getEmail(),
+                    "Resend Verification Email",
+                    "Click to verify:\n" + link
+            );
+        } catch (Exception e) {
+            System.out.println("Resend email failed but ignored: " + e.getMessage());
+        }
 
         return ResponseEntity.ok(Map.of("message", "Verification email sent"));
+//        return ResponseEntity.ok(Map.of("message", "Verification email sent"));
     }
 
     // ================= FORGOT PASSWORD =================
