@@ -861,7 +861,6 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Override
     public Page<ApplicationCandidateResponse> filterCandidatesGlobal(
-
             String keyword,
             Double minScore,
             String status,
@@ -870,82 +869,50 @@ public class ApplicationServiceImpl implements ApplicationService {
             int size
     ) {
 
-        // =========================================================
-        // ✅ Fetch ALL Applications (⚠️ consider replacing with DB filtering later)
-        // =========================================================
-        List<Application> applications = applicationRepo.findAll();
+        User recruiter = getLoggedInUser();
 
-        // =========================================================
-        // ✅ Apply Filters
-        // =========================================================
-        List<ApplicationCandidateResponse> filtered =
-                applications.stream()
+        Pageable pageable = PageRequest.of(page, size);
 
-                        // ================= Resume keyword filter =================
-                        .filter(app -> {
-                            if (keyword == null || keyword.isBlank()) return true;
+        // 🔥 STEP 1: ONLY recruiter-owned applications
+        Page<Application> applications =
+                applicationRepo.findByJob_Recruiter_Id(
+                        recruiter.getId(),
+                        pageable
+                );
 
-                            return app.getResumeText() != null &&
-                                    app.getResumeText().toLowerCase()
-                                            .contains(keyword.toLowerCase());
-                        })
+        // 🔥 STEP 2: apply remaining filters safely
+        List<ApplicationCandidateResponse> filtered = applications.stream()
 
-                        // ================= Match score filter =================
-                        .filter(app -> {
-                            if (minScore == null) return true;
+                .filter(app -> keyword == null || keyword.isBlank()
+                        || (app.getResumeText() != null &&
+                        app.getResumeText().toLowerCase().contains(keyword.toLowerCase()))
+                )
 
-                            return app.getMatchScore() != null &&
-                                    app.getMatchScore() >= minScore;
-                        })
+                .filter(app -> minScore == null
+                        || (app.getMatchScore() != null && app.getMatchScore() >= minScore)
+                )
 
-                        // ================= Status filter =================
-                        .filter(app -> {
-                            if (status == null || status.isBlank()) return true;
+                .filter(app -> status == null || status.isBlank()
+                        || app.getStatus().name().equalsIgnoreCase(status)
+                )
 
-                            return app.getStatus() != null &&
-                                    app.getStatus().name().equalsIgnoreCase(status);
-                        })
+                .filter(app -> skill == null || skill.isBlank()
+                        || app.getSkills().stream()
+                        .anyMatch(s ->
+                                s.getSkill() != null &&
+                                        s.getSkill().equalsIgnoreCase(skill)
+                        )
+                )
 
-                        // ================= Skill filter (FIXED) =================
-                        .filter(app -> {
-                            if (skill == null || skill.isBlank()) return true;
-
-                            return app.getSkills() != null &&
-                                    app.getSkills().stream()
-                                            .anyMatch(s ->
-                                                    s.getType() == SkillType.SNAPSHOT &&
-                                                            s.getSkill().equalsIgnoreCase(skill)
-                                            );
-                        })
-
-                        // ================= Sort by score DESC =================
-                        .sorted((a, b) -> Double.compare(
-                                b.getMatchScore() != null ? b.getMatchScore() : 0,
-                                a.getMatchScore() != null ? a.getMatchScore() : 0
-                        ))
-
-                        // ================= DTO Mapping =================
-                        .map(this::mapToCandidateResponse)
-                        .toList();
-
-        // =========================================================
-        // ✅ Manual Pagination
-        // =========================================================
-        int start = page * size;
-        int end = Math.min(start + size, filtered.size());
-
-        List<ApplicationCandidateResponse> paginated =
-                start >= filtered.size()
-                        ? Collections.emptyList()
-                        : filtered.subList(start, end);
+                .map(this::mapToCandidateResponse)
+                .toList();
 
         return new PageImpl<>(
-                paginated,
-                PageRequest.of(page, size),
-                filtered.size()
+                filtered,
+                pageable,
+                applications.getTotalElements()
         );
     }
-
     private ApplicationCandidateResponse mapToCandidateResponse(Application app) {
 
         return ApplicationCandidateResponse.builder()
@@ -1178,13 +1145,12 @@ public class ApplicationServiceImpl implements ApplicationService {
             int size
     ) {
 
-        // 1. Fetch recruiter
         User recruiter = userRepo.findByEmail(recruiterEmail)
                 .orElseThrow(() -> new RuntimeException("Recruiter not found"));
 
         Pageable pageable = PageRequest.of(page, size);
 
-        // 2. Fetch ONLY recruiter-owned job applications (SECURE QUERY)
+        // 🔥 SECURITY FIX: FILTER IN QUERY ITSELF
         Page<Application> applications =
                 applicationRepo.findByJob_PublicIdAndJob_Recruiter_Id(
                         jobId,
@@ -1192,25 +1158,20 @@ public class ApplicationServiceImpl implements ApplicationService {
                         pageable
                 );
 
-        // 3. Map to DTO
         return applications.map(app -> ApplicationCandidateResponse.builder()
                 .applicationId(app.getPublicId())
 
-                // candidate info
                 .studentPublicId(app.getCandidate().getPublicId())
                 .candidateName(app.getCandidateName())
                 .email(app.getCandidateEmail())
 
-                // job info
                 .jobPublicId(app.getJob().getPublicId())
                 .jobTitle(app.getJob().getTitle())
                 .companyName(app.getJob().getCompany().getName())
 
-                // status + score
                 .status(app.getStatus().name())
                 .matchScore(app.getMatchScore())
 
-                // skills mapping (FIXED)
                 .skills(
                         app.getSkills() == null
                                 ? List.of()
@@ -1219,10 +1180,8 @@ public class ApplicationServiceImpl implements ApplicationService {
                                 .toList()
                 )
 
-                // NOT IN ENTITY → safe empty
                 .extraSkills(List.of())
 
-                // other fields
                 .resumeUrl(app.getResumeUrl())
                 .coverLetter(app.getCoverLetter())
                 .viewed(app.getViewed())
@@ -1230,5 +1189,4 @@ public class ApplicationServiceImpl implements ApplicationService {
 
                 .build()
         );
-    }
-}
+    }}

@@ -96,7 +96,12 @@ public class ApplicationController {
             Authentication authentication
     ) {
         return ResponseEntity.ok(
-                service.getApplicationsByJobForRecruiter(jobId, authentication.getName(), page, size)
+                service.getApplicationsByJobForRecruiter(
+                        jobId,
+                        authentication.getName(),
+                        page,
+                        size
+                )
         );
     }
 

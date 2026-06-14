@@ -51,4 +51,11 @@ Page<Application> findByCandidateAndStatus(User user, ApplicationStatus status, 
             Long recruiterId,
             Pageable pageable
     );
+    Page<Application> findByJob_Recruiter_IdAndResumeTextContainingIgnoreCase(
+            Long recruiterId,
+            String keyword,
+            Pageable pageable
+    );
+
+    Page<Application> findByJob_Recruiter_Id(Long id, Pageable pageable);
 }
