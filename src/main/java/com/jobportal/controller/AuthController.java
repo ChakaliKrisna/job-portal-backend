@@ -42,6 +42,8 @@ public class AuthController {
     // ================= REGISTER =================
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+
+        // 1. Validate role
         Role role;
         try {
             role = Role.valueOf("ROLE_" + request.getRole().toUpperCase());
@@ -50,26 +52,33 @@ public class AuthController {
                     .body(Map.of("message", "Invalid role"));
         }
 
+        // 2. Check duplicate email
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("message", "Email already exists"));
         }
 
+        // 3. Create user
         User user = new User();
         user.setName(request.getName());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(role);
         user.setPublicId(generatePublicId(role));
-        user.setEnabled(false);
 
+        // 👉 For now (IMPORTANT): allow login without email verification
+        user.setEnabled(true);
+
+        // 4. Student profile
         if (role == Role.ROLE_STUDENT) {
             StudentProfile profile = new StudentProfile();
             profile.setUser(user);
             user.setStudentProfile(profile);
         }
 
+        // 5. Recruiter profile + company
         if (role == Role.ROLE_RECRUITER) {
+
             RecruiterProfile profile = new RecruiterProfile();
             profile.setUser(user);
             user.setRecruiterProfile(profile);
@@ -86,15 +95,20 @@ public class AuthController {
             user.setCompany(company);
         }
 
+        // 6. Save user
         userRepository.save(user);
 
+        // 7. Generate verification token (future use)
         String token = UUID.randomUUID().toString();
+
         VerificationToken vt = new VerificationToken();
         vt.setToken(token);
         vt.setUser(user);
         vt.setExpiryDate(LocalDateTime.now().plusHours(24));
+
         verificationTokenRepository.save(vt);
 
+        // 8. Frontend URL fallback
         String frontendUrl = System.getenv("FRONTEND_URL");
         if (frontendUrl == null || frontendUrl.isEmpty()) {
             frontendUrl = "http://localhost:5173";
@@ -102,40 +116,52 @@ public class AuthController {
 
         String link = frontendUrl + "/verify-email?token=" + token;
 
+        // 9. Email sending (NON-BLOCKING SAFE)
         try {
             emailService.sendEmail(
                     user.getEmail(),
                     "Verify Your Email",
-                    "Click to verify account:\n" + link
+                    "Click the link to verify your account:\n" + link
             );
         } catch (Exception e) {
-            System.out.println("Email failed but continuing: " + e.getMessage());
+            System.out.println("Email skipped (non-critical): " + e.getMessage());
         }
 
-        return ResponseEntity.ok(Map.of("message", "User registered successfully"));
-    }
-
-    // ================= LOGIN =================
-    @PostMapping("/login")
+        return ResponseEntity.ok(Map.of(
+                "message", "User registered successfully",
+                "note", "Email verification is currently optional"
+        ));
+    }@PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
+        // 1. Find user
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        // 2. Check password
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid password");
         }
 
-        if (!user.isEnabled()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Verify email first");
-        }
+        // 3. (IMPORTANT CHANGE)
+        // Email verification is temporarily NOT blocking login
+        // if (!user.isEnabled()) {
+        //     throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Verify email first");
+        // }
 
+        // 4. Generate JWT
         String token = JwtUtil.generateToken(user.getEmail(), user.getRole().name());
 
+        // 5. Response
         return ResponseEntity.ok(new LoginResponse(
-                token, user.getEmail(), user.getRole().name(), user.getPublicId(), user.getName()
+                token,
+                user.getEmail(),
+                user.getRole().name(),
+                user.getPublicId(),
+                user.getName()
         ));
     }
-
     // ================= RESEND EMAIL =================
     @Transactional // Requires transaction state wrapper to safely drop entity structures from SQL rows
     @PostMapping("/resend-verification")
