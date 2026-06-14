@@ -298,7 +298,9 @@ public class ApplicationServiceImpl implements ApplicationService {
                     .appliedAt(app.getAppliedAt())
 
                     .build();
-        });}
+        });
+    }
+
     private User getLoggedInUser() {
         var auth = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication();
@@ -453,6 +455,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         return Math.min(finalScore, 100);
     }
+
     private String normalize(String text) {
 
         return text.toLowerCase()
@@ -478,6 +481,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         return applications.map(this::mapToCandidateResponse);
     }
+
     @Override
     public Double calculateMatchScore(
             String jobId,
@@ -594,8 +598,6 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
 
-
-
     // ================= FIND BY PUBLIC ID =================
     @Override
     public Optional<Application> findByPublicId(String publicId) {
@@ -618,31 +620,25 @@ public class ApplicationServiceImpl implements ApplicationService {
         applicationRepo.save(app);
         String message = switch (status) {
 
-            case REVIEWED ->
-                    "Your application for " +
-                            app.getJob().getTitle() +
-                            " has been reviewed by the recruiter.";
+            case REVIEWED -> "Your application for " +
+                    app.getJob().getTitle() +
+                    " has been reviewed by the recruiter.";
 
-            case SHORTLISTED ->
-                    "Congratulations! You have been shortlisted for " +
-                            app.getJob().getTitle() + ".";
+            case SHORTLISTED -> "Congratulations! You have been shortlisted for " +
+                    app.getJob().getTitle() + ".";
 
-            case INTERVIEW->
-                    "Your application for " +
-                            app.getJob().getTitle() +
-                            " moved to the interview stage.";
+            case INTERVIEW -> "Your application for " +
+                    app.getJob().getTitle() +
+                    " moved to the interview stage.";
 
-            case HIRED ->
-                    "Congratulations! You have been hired for " +
-                            app.getJob().getTitle() + ".";
+            case HIRED -> "Congratulations! You have been hired for " +
+                    app.getJob().getTitle() + ".";
 
-            case REJECTED ->
-                    "Your application for " +
-                            app.getJob().getTitle() +
-                            " was not selected this time.";
+            case REJECTED -> "Your application for " +
+                    app.getJob().getTitle() +
+                    " was not selected this time.";
 
-            default ->
-                    "Your application status was updated.";
+            default -> "Your application status was updated.";
         };
 
         notificationService.createNotification(
@@ -658,7 +654,6 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
 
-
     @Override
     public boolean isAlreadyApplied(String jobId) {
 
@@ -672,6 +667,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         // ✅ Check in DB
         return applicationRepo.existsByJobAndCandidate(job, candidate);
     }
+
     @Override
     public ApplicationResponse getApplicationById(String applicationId) {
 
@@ -761,6 +757,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .filter(skill -> !appliedSet.contains(skill.toLowerCase().trim()))
                 .collect(Collectors.toList());
     }
+
     @Override
     public ApplicationResponse getMyApplication(String jobId) {
 
@@ -801,6 +798,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .appliedAt(app.getAppliedAt())
                 .build();
     }
+
     public ApplicationDetailsDto getApplicationDetails(String publicId, User student) {
 
         Application app = applicationRepo.findByPublicId(publicId)
@@ -860,6 +858,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .appliedAt(app.getAppliedAt())
                 .build();
     }
+
     @Override
     public Page<ApplicationCandidateResponse> filterCandidatesGlobal(
 
@@ -946,6 +945,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 filtered.size()
         );
     }
+
     private ApplicationCandidateResponse mapToCandidateResponse(Application app) {
 
         return ApplicationCandidateResponse.builder()
@@ -1013,6 +1013,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
                 .build();
     }
+
     @Override
     public Page<ApplicationCandidateResponse> filterCandidatesByJob(
 
@@ -1181,10 +1182,76 @@ public class ApplicationServiceImpl implements ApplicationService {
                     applicationRepo.countByJob(job);
 
             // if field exists
-             dto.setApplicationsCount(applicationsCount);
+            dto.setApplicationsCount(applicationsCount);
 
             return dto;
         });
     }
-}
 
+    @Override
+    public Page<ApplicationCandidateResponse> getApplicationsByJobForRecruiter(
+            String jobId,
+            String recruiterEmail,
+            int page,
+            int size
+    ) {
+
+        // 1. Get recruiter
+        User recruiter = userRepo.findByEmail(recruiterEmail)
+                .orElseThrow(() -> new RuntimeException("Recruiter not found"));
+
+        // 2. Get job
+        Job job = jobRepo.findByPublicId(jobId)
+                .orElseThrow(() -> new RuntimeException("Job not found"));
+
+        // 3. SECURITY CHECK (VERY IMPORTANT)
+        if (!job.getRecruiter().getId().equals(recruiter.getId())) {
+            throw new RuntimeException("You are not allowed to access this job applications");
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        // 4. Fetch applications
+        Page<Application> applications =
+                applicationRepo.findByJobPublicId(jobId, pageable);
+
+        // 5. Map to DTO
+        return applications.map(app -> ApplicationCandidateResponse.builder()
+                .applicationId(app.getPublicId())
+
+                // candidate info
+                .studentPublicId(app.getCandidate().getPublicId())
+                .candidateName(app.getCandidateName())
+                .email(app.getCandidateEmail())
+
+                // job info
+                .jobPublicId(app.getJob().getPublicId())
+                .jobTitle(app.getJob().getTitle())
+                .companyName(app.getJob().getCompany().getName())
+
+                // status + score
+                .status(app.getStatus().name())
+                .matchScore(app.getMatchScore())
+
+                // ✅ FIXED SKILLS MAPPING
+                .skills(
+                        app.getSkills() == null
+                                ? List.of()
+                                : app.getSkills().stream()
+                                .map(ApplicationSkill::getSkill) // or getSkill().getName()
+                                .toList()
+                )
+
+                // ❌ REMOVE extraSkills (NOT IN ENTITY)
+                .extraSkills(List.of()) // OR DELETE FIELD FROM DTO (recommended)
+
+                // other fields
+                .resumeUrl(app.getResumeUrl())
+                .coverLetter(app.getCoverLetter())
+                .viewed(app.getViewed())
+                .appliedAt(app.getAppliedAt())
+
+                .build()
+        );
+    }
+}

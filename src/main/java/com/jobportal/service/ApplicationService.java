@@ -76,5 +76,7 @@ public interface ApplicationService {
 
     Page<JobResponseDTO> getRecruiterJobs(int page, int size);
 
+    Page<ApplicationCandidateResponse> getApplicationsByJobForRecruiter(String jobId, String name, int page, int size);
+
 //    Page<JobResponseDTO> getRecruiterJobs(int page, int size);
 }

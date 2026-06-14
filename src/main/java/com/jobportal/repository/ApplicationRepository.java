@@ -41,5 +41,7 @@ Page<Application> findByCandidateAndStatus(User user, ApplicationStatus status, 
     Optional<Object> findByJobPublicIdAndCandidate(String jobPublicId, User user);
 
     long countByJob(Job job);
+
+    Page<Application> findByJobPublicId(String jobId, Pageable pageable);
 //    Optional<Application> findByPublicId(String publicId);
 }
