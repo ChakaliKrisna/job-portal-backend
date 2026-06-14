@@ -18,33 +18,56 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface JobRepository extends JpaRepository<Job, Long>, JpaSpecificationExecutor<Job> {
-//{
+public interface JobRepository
+        extends JpaRepository<Job, Long>,
+        JpaSpecificationExecutor<Job> {
+
     Optional<Job> findByPublicId(String publicId);
-//    Optional<Job> findByPublicId(String publicId);
-    Optional<Job> findByTitleAndCompanyAndLocation(String title, Company company, String location);
-    @Query("SELECT j FROM Job j WHERE j.recruiter.id = :recruiterId " +
-            "AND LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%'))")
-    Page<Job> findByRecruiterAndKeyword(Long recruiterId, String keyword, Pageable pageable);
 
-    Page<Job> findByRecruiter(User recruiter, Pageable pageable);
-//    public interface JobRepository extends JpaRepository<Job, Long>, JpaSpecificationExecutor<Job> {
-Page<Job> findByCompany_PublicId(
-        String publicId,
-        Pageable pageable
-);
+    Optional<Job> findByTitleAndCompanyAndLocation(
+            String title,
+            Company company,
+            String location
+    );
 
-    long countByRecruiter_IdAndStatus(Long recruiterId, JobStatus jobStatus);
+    @Query("""
+            SELECT j
+            FROM Job j
+            WHERE j.recruiter.id = :recruiterId
+            AND LOWER(j.title)
+            LIKE LOWER(CONCAT('%', :keyword, '%'))
+            """)
+    Page<Job> findByRecruiterAndKeyword(
+            Long recruiterId,
+            String keyword,
+            Pageable pageable
+    );
+
+    Page<Job> findByRecruiter(
+            User recruiter,
+            Pageable pageable
+    );
+
+    Page<Job> findByCompany_PublicId(
+            String publicId,
+            Pageable pageable
+    );
 
     long countByRecruiter_Id(Long recruiterId);
 
+    long countByRecruiter_IdAndStatus(
+            Long recruiterId,
+            JobStatus jobStatus
+    );
+
     long countByStatus(JobStatus jobStatus);
 
-    Page<JobResponseDTO> findRecruiterJobs(User recruiter, Pageable pageable);
     @EntityGraph(attributePaths = {
             "company",
             "recruiter"
     })
-    Page<Job> findAll(Specification<Job> spec, Pageable pageable);
-//    }
+    Page<Job> findAll(
+            Specification<Job> spec,
+            Pageable pageable
+    );
 }
