@@ -325,46 +325,43 @@ public class ApplicationServiceImpl implements ApplicationService {
             String jobDescription
     ) {
 
-        // =========================================================
-        // ✅ Safe Lists
-        // =========================================================
-
         userSkills = Optional.ofNullable(userSkills)
-                .orElse(new ArrayList<>());
+                .orElse(Collections.emptyList());
 
         extraSkills = Optional.ofNullable(extraSkills)
-                .orElse(new ArrayList<>());
+                .orElse(Collections.emptyList());
 
         jobSkills = Optional.ofNullable(jobSkills)
-                .orElse(new ArrayList<>());
+                .orElse(Collections.emptyList());
 
-        // =========================================================
-        // ✅ Combine Skills
-        // =========================================================
+        // =====================================================
+        // Normalize Candidate Skills
+        // =====================================================
 
         Set<String> candidateSkills = new HashSet<>();
-
-// =========================================================
-// ✅ Profile Skills
-// =========================================================
 
         userSkills.stream()
                 .filter(Objects::nonNull)
                 .map(this::simplifySkill)
                 .forEach(candidateSkills::add);
 
-// =========================================================
-// ✅ Extra Skills
-// =========================================================
-
         extraSkills.stream()
                 .filter(Objects::nonNull)
                 .map(this::simplifySkill)
                 .forEach(candidateSkills::add);
 
-// =========================================================
-// ✅ Resume Keyword Skills
-// =========================================================
+        // =====================================================
+        // Normalize Required Skills
+        // =====================================================
+
+        Set<String> requiredSkills = jobSkills.stream()
+                .filter(Objects::nonNull)
+                .map(this::simplifySkill)
+                .collect(Collectors.toSet());
+
+        // =====================================================
+        // Resume Analysis
+        // =====================================================
 
         String normalizedResume =
                 normalize(
@@ -372,90 +369,82 @@ public class ApplicationServiceImpl implements ApplicationService {
                                 .orElse("")
                 );
 
-        jobSkills.stream()
-                .filter(Objects::nonNull)
-                .map(this::simplifySkill)
-                .forEach(skill -> {
+        String normalizedJobDesc =
+                normalize(
+                        Optional.ofNullable(jobDescription)
+                                .orElse("")
+                );
 
-                    if (normalizedResume.contains(skill)) {
-                        candidateSkills.add(skill);
-                    }
-                });
-        Set<String> requiredSkills = jobSkills.stream()
-                .filter(Objects::nonNull)
-                .map(this::normalize)
-                .collect(Collectors.toSet());
+        long resumeMatchedSkills =
+                requiredSkills.stream()
+                        .filter(normalizedResume::contains)
+                        .count();
 
-        // =========================================================
-        // ✅ SKILL MATCH SCORE (80%)
-        // =========================================================
+        // =====================================================
+        // Skill Match Score (70%)
+        // =====================================================
 
-        long matchedSkills = requiredSkills.stream()
-                .filter(candidateSkills::contains)
-                .count();
+        long matchedSkills =
+                requiredSkills.stream()
+                        .filter(candidateSkills::contains)
+                        .count();
 
-        double skillScore = requiredSkills.isEmpty()
-                ? 0
-                : ((double) matchedSkills / requiredSkills.size()) * 80;
+        double skillScore =
+                requiredSkills.isEmpty()
+                        ? 0
+                        : ((double) matchedSkills / requiredSkills.size()) * 70;
 
-        // =========================================================
-        // ✅ RESUME KEYWORD SCORE (20%)
-        // =========================================================
+        // =====================================================
+        // Resume Relevance Score (20%)
+        // =====================================================
 
-        double keywordScore = 0;
+        double resumeScore =
+                requiredSkills.isEmpty()
+                        ? 0
+                        : ((double) resumeMatchedSkills / requiredSkills.size()) * 20;
 
-        String resume = normalize(
-                Optional.ofNullable(resumeText).orElse("")
-        );
+        // =====================================================
+        // Extra Skill Bonus (10%)
+        // =====================================================
 
-        String jobDesc = normalize(
-                Optional.ofNullable(jobDescription).orElse("")
-        );
+        Set<String> uniqueExtraSkills =
+                extraSkills.stream()
+                        .filter(Objects::nonNull)
+                        .map(this::simplifySkill)
+                        .collect(Collectors.toSet());
 
-        for (String skill : requiredSkills) {
+        double extraSkillScore =
+                Math.min(uniqueExtraSkills.size(), 10);
 
-            String simplifiedSkill = simplifySkill(skill);
+        // =====================================================
+        // Job Description Alignment Bonus
+        // =====================================================
 
-            boolean inResume =
-                    resume.contains(simplifiedSkill);
+        long jdMatches =
+                requiredSkills.stream()
+                        .filter(normalizedJobDesc::contains)
+                        .filter(normalizedResume::contains)
+                        .count();
 
-            boolean inJobDesc =
-                    jobDesc.contains(simplifiedSkill);
+        double jdBonus =
+                requiredSkills.isEmpty()
+                        ? 0
+                        : ((double) jdMatches / requiredSkills.size()) * 5;
 
-            if (inResume) {
-                keywordScore += 3;
-            }
-
-            if (inResume && inJobDesc) {
-                keywordScore += 2;
-            }
-        }
-
-        // Max 20%
-        keywordScore = Math.min(keywordScore, 20);
-
-        // =========================================================
-        // ✅ Bonus For Extra Skills
-        // =========================================================
-
-        double extraSkillBonus = 0;
-
-        if (extraSkills.size() >= 3) {
-            extraSkillBonus = 5;
-        }
-
-        // =========================================================
-        // ✅ Final ATS Score
-        // =========================================================
+        // =====================================================
+        // Final Score
+        // =====================================================
 
         double finalScore =
                 skillScore
-                        + keywordScore
-                        + extraSkillBonus;
+                        + resumeScore
+                        + extraSkillScore
+                        + jdBonus;
 
-        return Math.min(finalScore, 100);
+        return Math.round(
+                Math.min(finalScore, 100.0) * 100
+        ) / 100.0;
     }
-
     private String normalize(String text) {
 
         return text.toLowerCase()
@@ -488,76 +477,48 @@ public class ApplicationServiceImpl implements ApplicationService {
             List<String> extraSkills
     ) {
 
-        // =========================================================
-        // ✅ Logged-in User
-        // =========================================================
-
         User candidate = getLoggedInUser();
-
-        // =========================================================
-        // ✅ Fetch Job
-        // =========================================================
 
         Job job = jobRepo.findByPublicId(jobId)
                 .orElseThrow(() -> new RuntimeException("Job not found"));
 
-        // =========================================================
-        // ✅ Student Profile
-        // =========================================================
-
         StudentProfile profile = candidate.getStudentProfile();
 
-        // =========================================================
-        // ✅ User Skills
-        // =========================================================
-
         List<String> userSkills =
-                Optional.ofNullable(profile.getSkills())
+                Optional.ofNullable(profile)
+                        .map(StudentProfile::getSkills)
                         .orElse(Collections.emptyList())
                         .stream()
                         .map(StudentSkill::getSkill)
+                        .filter(Objects::nonNull)
                         .toList();
-        // =========================================================
-        // ✅ Job Skills
-        // =========================================================
 
-        List<String> jobSkills =
+        List<String> requiredSkills =
                 Optional.ofNullable(job.getSkillsRequired())
                         .orElse(Collections.emptyList())
                         .stream()
                         .map(JobSkill::getSkill)
+                        .filter(Objects::nonNull)
                         .toList();
 
-        // =========================================================
-        // ✅ Resume Text
-        // =========================================================
-
         String resumeText =
-                profile.getResumeText() != null
-                        ? profile.getResumeText()
-                        : "";
-
-        // =========================================================
-        // ✅ Job Description
-        // =========================================================
+                Optional.ofNullable(profile)
+                        .map(StudentProfile::getResumeText)
+                        .orElse("");
 
         String jobDescription =
-                job.getDescription() != null
-                        ? job.getDescription()
-                        : "";
-
-        // =========================================================
-        // ✅ Calculate Score
-        // =========================================================
+                Optional.ofNullable(job.getDescription())
+                        .orElse("");
 
         return calculateScore(
                 userSkills,
                 extraSkills,
-                jobSkills,
+                requiredSkills,
                 resumeText,
                 jobDescription
         );
     }
+
 
     @Override
     public List<String> getMissingSkillsForApplicationBeforeApply(String jobId) {
