@@ -16,35 +16,34 @@ import java.util.List;
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
-
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain)
             throws ServletException, IOException {
-        System.out.println("JWT FILTER ENTERED: " + request.getRequestURI());
 
         String path = request.getRequestURI();
-        System.out.println("FILTER HIT -> " + path);
 
-        // ✅ Skip auth endpoints completely
-        // ✅ SKIP AUTH ENDPOINTS
-        if (path.startsWith("/auth/")) {
-            filterChain.doFilter(request, response);  // 🔥 MUST PASS REQUEST
+        System.out.println("JWT FILTER -> " + path);
+
+        // ✅ ALWAYS skip public endpoints safely
+        if (path.contains("/auth/login") ||
+                path.contains("/auth/register")) {
+            filterChain.doFilter(request, response);
             return;
         }
 
         String header = request.getHeader("Authorization");
 
-        // ❌ DO NOT block request here
+        // ✅ allow request if no token
         if (header == null || !header.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = header.substring(7);
-
         try {
+            String token = header.substring(7);
+
             if (JwtUtil.validateToken(token)) {
 
                 String email = JwtUtil.extractEmail(token);
@@ -65,8 +64,10 @@ public class JwtFilter extends OncePerRequestFilter {
             }
 
         } catch (Exception e) {
+            System.out.println("JWT ERROR: " + e.getMessage());
             SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);
-    }}
+    }
+}
