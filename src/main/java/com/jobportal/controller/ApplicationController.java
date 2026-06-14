@@ -181,4 +181,8 @@ public class ApplicationController {
         String email = auth.getName();
         return ResponseEntity.ok(service.getRecruiterAnalytics(email));
     }
+    @GetMapping("/dashboard/platform-overview")
+    public ResponseEntity<PlatformStatsDTO> getPlatformStats() {
+        return ResponseEntity.ok(service.getPlatformStats());
+    }
 }

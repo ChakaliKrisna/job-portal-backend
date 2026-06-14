@@ -1229,6 +1229,26 @@ public class ApplicationServiceImpl implements ApplicationService {
                 interviews
         );
     }
+    public PlatformStatsDTO getPlatformStats() {
+
+        long totalUsers = userRepo.count();
+        long totalRecruiters = userRepo.countByRole(Role.ROLE_RECRUITER);
+        long totalStudents = userRepo.countByRole(Role.ROLE_RECRUITER);
+
+        long totalJobs = jobRepo.count();
+        long activeJobs = jobRepo.countByStatus(JobStatus.OPEN);
+
+        long totalApplications = applicationRepo.count();
+
+        return new PlatformStatsDTO(
+                totalUsers,
+                totalRecruiters,
+                totalStudents,
+                totalJobs,
+                totalApplications,
+                activeJobs
+        );
+    }
 
 
 }

@@ -77,5 +77,7 @@ public interface ApplicationService {
 
     RecruiterAnalyticsDTO getRecruiterAnalytics(String email);
 
+    PlatformStatsDTO getPlatformStats();
+
 //    Page<JobResponseDTO> getRecruiterJobs(int page, int size);
 }

@@ -34,5 +34,7 @@ Page<Job> findByCompany_PublicId(
     long countByRecruiter_IdAndStatus(Long recruiterId, JobStatus jobStatus);
 
     long countByRecruiter_Id(Long recruiterId);
+
+    long countByStatus(JobStatus jobStatus);
 //    }
 }
