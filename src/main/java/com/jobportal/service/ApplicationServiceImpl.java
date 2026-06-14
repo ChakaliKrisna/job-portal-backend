@@ -1096,6 +1096,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 filtered.size()
         );
     }
+
     private String simplifySkill(String skill) {
 
         skill = normalize(skill);
@@ -1177,26 +1178,21 @@ public class ApplicationServiceImpl implements ApplicationService {
             int size
     ) {
 
-        // 1. Get recruiter
+        // 1. Fetch recruiter
         User recruiter = userRepo.findByEmail(recruiterEmail)
                 .orElseThrow(() -> new RuntimeException("Recruiter not found"));
 
-        // 2. Get job
-        Job job = jobRepo.findByPublicId(jobId)
-                .orElseThrow(() -> new RuntimeException("Job not found"));
-
-        // 3. SECURITY CHECK (VERY IMPORTANT)
-        if (!job.getRecruiter().getId().equals(recruiter.getId())) {
-            throw new RuntimeException("You are not allowed to access this job applications");
-        }
-
         Pageable pageable = PageRequest.of(page, size);
 
-        // 4. Fetch applications
+        // 2. Fetch ONLY recruiter-owned job applications (SECURE QUERY)
         Page<Application> applications =
-                applicationRepo.findByJobPublicId(jobId, pageable);
+                applicationRepo.findByJob_PublicIdAndJob_Recruiter_Id(
+                        jobId,
+                        recruiter.getId(),
+                        pageable
+                );
 
-        // 5. Map to DTO
+        // 3. Map to DTO
         return applications.map(app -> ApplicationCandidateResponse.builder()
                 .applicationId(app.getPublicId())
 
@@ -1214,17 +1210,17 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .status(app.getStatus().name())
                 .matchScore(app.getMatchScore())
 
-                // ✅ FIXED SKILLS MAPPING
+                // skills mapping (FIXED)
                 .skills(
                         app.getSkills() == null
                                 ? List.of()
                                 : app.getSkills().stream()
-                                .map(ApplicationSkill::getSkill) // or getSkill().getName()
+                                .map(ApplicationSkill::getSkill)
                                 .toList()
                 )
 
-                // ❌ REMOVE extraSkills (NOT IN ENTITY)
-                .extraSkills(List.of()) // OR DELETE FIELD FROM DTO (recommended)
+                // NOT IN ENTITY → safe empty
+                .extraSkills(List.of())
 
                 // other fields
                 .resumeUrl(app.getResumeUrl())

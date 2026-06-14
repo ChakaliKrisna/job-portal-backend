@@ -44,4 +44,11 @@ Page<Application> findByCandidateAndStatus(User user, ApplicationStatus status, 
 
     Page<Application> findByJobPublicId(String jobId, Pageable pageable);
 //    Optional<Application> findByPublicId(String publicId);
+
+
+    Page<Application> findByJob_PublicIdAndJob_Recruiter_Id(
+            String jobId,
+            Long recruiterId,
+            Pageable pageable
+    );
 }
