@@ -48,6 +48,7 @@ public class JobController {
     // ✅ GET ALL JOBS
 //    @PreAuthorize("hasAnyRole('STUDENT','RECRUITER')")
 //    @Override
+    @GetMapping
     public Page<Job> getAllJobs(
             String keyword,
             String location,
