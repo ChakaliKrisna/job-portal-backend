@@ -134,38 +134,41 @@ public class AuthController {
     }@PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
 
-        // 1. Find user
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElse(null);
+        try {
 
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "User not found"));
+            User user = userRepository.findByEmail(request.getEmail())
+                    .orElse(null);
+
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "User not found"));
+            }
+
+            if (user.getPassword() == null) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("message", "User password not set in DB"));
+            }
+
+            if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Invalid password"));
+            }
+
+            String token = JwtUtil.generateToken(user.getEmail(), user.getRole().name());
+
+            return ResponseEntity.ok(new LoginResponse(
+                    token,
+                    user.getEmail(),
+                    user.getRole().name(),
+                    user.getPublicId(),
+                    user.getName()
+            ));
+
+        } catch (Exception e) {
+            e.printStackTrace(); // VERY IMPORTANT
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Server error: " + e.getMessage()));
         }
-
-        // 2. Check password
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "Invalid password"));
-        }
-
-        // 3. (optional email verification)
-        // if (!user.isEnabled()) {
-        //     return ResponseEntity.status(HttpStatus.FORBIDDEN)
-        //             .body(Map.of("message", "Verify email first"));
-        // }
-
-        // 4. Generate JWT
-        String token = JwtUtil.generateToken(user.getEmail(), user.getRole().name());
-
-        // 5. Success response
-        return ResponseEntity.ok(new LoginResponse(
-                token,
-                user.getEmail(),
-                user.getRole().name(),
-                user.getPublicId(),
-                user.getName()
-        ));
     }
     // ================= RESEND EMAIL =================
     @Transactional // Requires transaction state wrapper to safely drop entity structures from SQL rows
