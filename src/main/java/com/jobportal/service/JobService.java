@@ -1,5 +1,6 @@
 package com.jobportal.service;
 
+import com.jobportal.dto.JobCardDTO;
 import com.jobportal.dto.JobDTO;
 import com.jobportal.dto.JobResponseDTO;
 import com.jobportal.entity.*;
@@ -48,17 +49,16 @@ public interface JobService {
 //    Page<JobResponseDTO> getMyJobs(String keyword, String location, String jobType, String workMode, String experienceLevel, Pageable pageable);
 
 //    JobResponseDTO convertToDTO(Job job);
-Page<Job> getAllJobs(
+public Page<JobCardDTO> getAllJobs(
         String keyword,
         String location,
         JobType jobType,
         WorkMode workMode,
         ExperienceLevel experienceLevel,
-        JobStatus JobStatus,
+        JobStatus jobStatus,
         Double minSalary,
         JobCategory category,
-        Pageable pageable
-);
+        Pageable pageable);
 
     Page<JobResponseDTO> getJobsByCompany(String publicId, int page, int size);
 

@@ -1,9 +1,7 @@
 package com.jobportal.service;
 
 import com.jobportal.AccessDeniedException;
-import com.jobportal.dto.JobDTO;
-import com.jobportal.dto.JobResponseDTO;
-import com.jobportal.dto.RecruiterDTO;
+import com.jobportal.dto.*;
 import com.jobportal.entity.*;
 import com.jobportal.exception.BadRequestException;
 import com.jobportal.exception.ResourceNotFoundException;
@@ -227,31 +225,96 @@ public class JobServiceImpl implements JobService {
 
     public JobResponseDTO convertToDTO(Job job) {
 
-        RecruiterDTO recruiterDTO = null;
+        JobResponseDTO dto = new JobResponseDTO();
 
+        dto.setPublicId(job.getPublicId());
+        dto.setTitle(job.getTitle());
+        dto.setLocation(job.getLocation());
+        dto.setSalary(job.getSalary());
+
+        dto.setJobType(
+                job.getJobType() != null
+                        ? job.getJobType().name()
+                        : null);
+
+        dto.setWorkMode(
+                job.getWorkMode() != null
+                        ? job.getWorkMode().name()
+                        : null);
+
+        dto.setExperienceLevel(
+                job.getExperienceLevel() != null
+                        ? job.getExperienceLevel().name()
+                        : null);
+
+        dto.setStatus(
+                job.getStatus() != null
+                        ? job.getStatus().name()
+                        : null);
+
+        dto.setCategory(
+                job.getCategory() != null
+                        ? job.getCategory().name()
+                        : null);
+
+        dto.setDescription(job.getDescription());
+        dto.setOpenings(job.getOpenings());
+        dto.setPostedDate(job.getPostedDate());
+        dto.setClosedDate(job.getClosingDate());
+
+        // Company
+        if (job.getCompany() != null) {
+
+            CompanyDTO companyDTO = new CompanyDTO();
+
+            companyDTO.setPublicId(job.getCompany().getPublicId());
+            companyDTO.setName(job.getCompany().getName());
+            companyDTO.setLogoUrl(job.getCompany().getLogoUrl());
+            companyDTO.setWebsite(job.getCompany().getWebsite());
+            companyDTO.setLocation(job.getCompany().getLocation());
+
+            dto.setCompany(companyDTO);
+        }
+
+        // Recruiter
         if (job.getRecruiter() != null) {
-            recruiterDTO = new RecruiterDTO(
+
+            RecruiterDTO recruiterDTO = new RecruiterDTO(
                     job.getRecruiter().getPublicId(),
                     job.getRecruiter().getName(),
                     job.getRecruiter().getEmail()
             );
+
+            dto.setRecruiter(recruiterDTO);
         }
 
-        return new JobResponseDTO(job, recruiterDTO);
+        return dto;
     }
 
     @Override
-    public Page<Job> getAllJobs(String keyword, String location, JobType jobType, WorkMode workMode, ExperienceLevel experienceLevel, JobStatus JobStatus, Double minSalary, JobCategory category, Pageable pageable) {
+    public Page<JobCardDTO> getAllJobs(
+            String keyword,
+            String location,
+            JobType jobType,
+            WorkMode workMode,
+            ExperienceLevel experienceLevel,
+            JobStatus jobStatus,
+            Double minSalary,
+            JobCategory category,
+            Pageable pageable) {
+
         Specification<Job> spec = Specification
-                .where(JobSpecification.searchKeyword(keyword))
-                .and(JobSpecification.hasLocation(location))
-                .and(JobSpecification.hasJobType(jobType))           // ✅ FIX
-                .and(JobSpecification.hasWorkMode(workMode))         // ✅ FIX
-                .and(JobSpecification.hasExperienceLevel(experienceLevel)) // ✅ FIX
-                .and(JobSpecification.hasStatus(JobStatus))             // ✅ FIX
-                .and(JobSpecification.hasCategory(category))         // ✅ ADD THIS
-                .and(JobSpecification.hasMinSalary(minSalary));
-        return jobRepo.findAll(spec, pageable);
+                .where(JobSpecification.keyword(keyword))
+                .and(JobSpecification.location(location))
+                .and(JobSpecification.jobType(jobType))
+                .and(JobSpecification.workMode(workMode))
+                .and(JobSpecification.experienceLevel(experienceLevel))
+                .and(JobSpecification.status(jobStatus))
+                .and(JobSpecification.category(category))
+                .and(JobSpecification.minSalary(minSalary));
+
+        return jobRepo.findAll(spec, pageable)
+                .map(this::convertToCardDTO);
     }
 
 //
@@ -277,35 +340,46 @@ public class JobServiceImpl implements JobService {
             JobCategory category,
             Pageable pageable) {
 
-        // 🔐 Get logged-in user
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
 
         User recruiter = userRepo.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found"));
 
-        // 🔐 Role check
-        if (!"ROLE_RECRUITER".equals(recruiter.getRole().name())) {
-            throw new AccessDeniedException("Only recruiters can view their jobs");
-        }
+        Specification<Job> spec =
+                Specification.where(
+                        JobSpecification.recruiter(recruiter.getId()));
 
-        // 🔍 Build Specification
-        Specification<Job> spec = Specification
-                .where(JobSpecification.belongsToRecruiter(recruiter.getId()))
-                .and(JobSpecification.searchKeyword(keyword))
-                .and(JobSpecification.hasLocation(location))
-                .and(JobSpecification.hasJobType(jobType))           // ✅ FIX
-                .and(JobSpecification.hasWorkMode(workMode))         // ✅ FIX
-                .and(JobSpecification.hasExperienceLevel(experienceLevel)) // ✅ FIX
-                .and(JobSpecification.hasStatus(status))             // ✅ FIX
-                .and(JobSpecification.hasCategory(category))         // ✅ ADD THIS
-                .and(JobSpecification.hasMinSalary(minSalary));
-        // 📦 Fetch data
-        Page<Job> jobPage = jobRepo.findAll(spec, pageable);
+        if (keyword != null && !keyword.isBlank())
+            spec = spec.and(JobSpecification.keyword(keyword));
 
-        // 🔄 Convert to DTO
-        return jobPage.map(this::convertToDTO);
+        if (location != null && !location.isBlank())
+            spec = spec.and(JobSpecification.location(location));
+
+        if (jobType != null)
+            spec = spec.and(JobSpecification.jobType(jobType));
+
+        if (workMode != null)
+            spec = spec.and(JobSpecification.workMode(workMode));
+
+        if (experienceLevel != null)
+            spec = spec.and(JobSpecification.experienceLevel(experienceLevel));
+
+        if (status != null)
+            spec = spec.and(JobSpecification.status(status));
+
+        if (category != null)
+            spec = spec.and(JobSpecification.category(category));
+
+        if (minSalary != null)
+            spec = spec.and(JobSpecification.minSalary(minSalary));
+
+        return jobRepo.findAll(spec, pageable)
+                .map(this::convertToDTO);
     }
-
 //    @Override
 //    public Page<JobResponseDTO> getMyJobs(String keyword, String location, String jobType, String workMode, String experienceLevel, Pageable pageable) {
 //        return null;
@@ -402,6 +476,19 @@ public class JobServiceImpl implements JobService {
         return userRepo.findByEmail(email)
                 .orElseThrow(() ->
                         new RuntimeException("User not found"));
+    }
+    private JobCardDTO convertToCardDTO(Job job) {
+
+        return new JobCardDTO(
+                job.getPublicId(),
+                job.getTitle(),
+                job.getLocation(),
+                job.getSalary(),
+                job.getJobType() != null ? job.getJobType().name() : null,
+                job.getWorkMode() != null ? job.getWorkMode().name() : null,
+                job.getCompany() != null ? job.getCompany().getName() : null,
+                job.getCompany() != null ? job.getCompany().getLogoUrl() : null
+        );
     }
     }
 

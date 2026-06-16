@@ -6,6 +6,7 @@ package com.jobportal.controller;
 //import entity.Job;
 //import service.JobService;
 
+import com.jobportal.dto.JobCardDTO;
 import com.jobportal.dto.JobDTO;
 import com.jobportal.dto.JobResponseDTO;
 import com.jobportal.entity.*;
@@ -49,30 +50,32 @@ public class JobController {
 //    @PreAuthorize("hasAnyRole('STUDENT','RECRUITER')")
 //    @Override
     @GetMapping
-    public Page<Job> getAllJobs(
-            String keyword,
-            String location,
-            JobType jobType,
-            WorkMode workMode,
-            ExperienceLevel experienceLevel,
-            JobStatus jobStatus,
-            Double minSalary,
-            JobCategory category,
+    public ResponseEntity<Page<JobCardDTO>> getAllJobs(
+
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) JobType jobType,
+            @RequestParam(required = false) WorkMode workMode,
+            @RequestParam(required = false) ExperienceLevel experienceLevel,
+            @RequestParam(required = false) JobStatus jobStatus,
+            @RequestParam(required = false) Double minSalary,
+            @RequestParam(required = false) JobCategory category,
             Pageable pageable) {
 
-        Specification<Job> spec = Specification
-                .where(JobSpecification.searchKeyword(keyword))
-                .and(JobSpecification.hasLocation(location))
-                .and(JobSpecification.hasJobType(jobType))
-                .and(JobSpecification.hasWorkMode(workMode))
-                .and(JobSpecification.hasExperienceLevel(experienceLevel))
-                .and(JobSpecification.hasStatus(jobStatus))
-                .and(JobSpecification.hasCategory(category))
-                .and(JobSpecification.hasMinSalary(minSalary));
-
-        return jobRepo.findAll(spec, pageable);
+        return ResponseEntity.ok(
+                service.getAllJobs(
+                        keyword,
+                        location,
+                        jobType,
+                        workMode,
+                        experienceLevel,
+                        jobStatus,
+                        minSalary,
+                        category,
+                        pageable
+                )
+        );
     }
-
     // ✅ UPDATE JOB
     @PreAuthorize("hasRole('RECRUITER')")
     @PutMapping("/{publicId}")
