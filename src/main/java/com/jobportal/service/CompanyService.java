@@ -50,6 +50,11 @@ public class CompanyService {
         if(company == null) {
             throw new RuntimeException("Company not found");
         }
+        if (request.getLogoUrl() != null &&
+                request.getLogoUrl().length() > 2000) {
+
+            throw new RuntimeException("Logo URL is too long");
+        }
 
         company.setName(request.getName());
         company.setLocation(request.getLocation());

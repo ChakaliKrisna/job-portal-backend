@@ -261,6 +261,7 @@ public class JobServiceImpl implements JobService {
         dto.setOpenings(job.getOpenings());
         dto.setPostedDate(job.getPostedDate());
         dto.setClosedDate(job.getClosingDate());
+        dto.setApplicantsCount(job.getApplicantsCount());
 
         // Company
         if (job.getCompany() != null) {
