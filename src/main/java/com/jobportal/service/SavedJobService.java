@@ -2,6 +2,7 @@ package com.jobportal.service;
 
 //package com.jobportal.service;
 
+import com.jobportal.dto.JobCardDTO;
 import com.jobportal.dto.JobResponseDTO;
 import com.jobportal.dto.RecruiterDTO;
 import com.jobportal.entity.*;
@@ -62,22 +63,31 @@ public class SavedJobService {
 
         return savedJobRepo.existsByUserAndJob(user, job);
     }
-    public List<JobResponseDTO> getSavedJobs(String email) {
+    public List<JobCardDTO> getSavedJobs(String email) {
+
         User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         return savedJobRepo.findByUser(user)
                 .stream()
                 .map(savedJob -> {
+
                     Job job = savedJob.getJob();
 
-                    RecruiterDTO recruiterDTO = null;
-                    if (job.getRecruiter() != null) {
-                        recruiterDTO = new RecruiterDTO(job.getRecruiter());
-                    }
-
-                    return new JobResponseDTO(job, recruiterDTO);
+                    return new JobCardDTO(
+                            job.getPublicId(),
+                            job.getTitle(),
+                            job.getLocation(),
+                            job.getSalary(),
+                            job.getJobType().name(),
+                            job.getWorkMode().name(),
+                            job.getCompany() != null
+                                    ? job.getCompany().getName()
+                                    : null,
+                            job.getCompany() != null
+                                    ? job.getCompany().getLogoUrl()
+                                    : null
+                    );
                 })
                 .toList();
-    }
-}
+    }}

@@ -2,6 +2,7 @@ package com.jobportal.controller;
 
 //package com.jobportal.controller;
 
+import com.jobportal.dto.JobCardDTO;
 import com.jobportal.dto.JobResponseDTO;
 import com.jobportal.entity.SavedJob;
 import com.jobportal.service.SavedJobService;
@@ -51,7 +52,7 @@ public class SavedJobController {
     }
     @GetMapping
     @PreAuthorize("hasRole('STUDENT')")
-    public List<JobResponseDTO> getSavedJobs(Authentication auth) {
+    public List<JobCardDTO> getSavedJobs(Authentication auth) {
         return service.getSavedJobs(auth.getName());
     }
 }
