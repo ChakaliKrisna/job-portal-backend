@@ -191,6 +191,10 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         // ================= Save Application =================
         applicationRepo.save(app);
+        applicationRepo.save(app);
+
+        job.setApplicantsCount(job.getApplicantsCount() + 1);
+        jobRepo.save(job);
     }
 
 
@@ -318,29 +322,35 @@ public class ApplicationServiceImpl implements ApplicationService {
 //        app.setMatchScore(score);
 
     private double calculateScore(
-            List<String> userSkills,
+            List<String> profileSkills,
             List<String> extraSkills,
-            List<String> jobSkills,
+            List<String> requiredSkills,
             String resumeText,
             String jobDescription
     ) {
 
-        userSkills = Optional.ofNullable(userSkills)
+        profileSkills = Optional.ofNullable(profileSkills)
                 .orElse(Collections.emptyList());
 
         extraSkills = Optional.ofNullable(extraSkills)
                 .orElse(Collections.emptyList());
 
-        jobSkills = Optional.ofNullable(jobSkills)
+        requiredSkills = Optional.ofNullable(requiredSkills)
                 .orElse(Collections.emptyList());
 
-        // =====================================================
-        // Normalize Candidate Skills
-        // =====================================================
+        String resume =
+                normalize(Optional.ofNullable(resumeText).orElse(""));
+
+        String jd =
+                normalize(Optional.ofNullable(jobDescription).orElse(""));
+
+        // ====================================================
+        // Candidate Skills
+        // ====================================================
 
         Set<String> candidateSkills = new HashSet<>();
 
-        userSkills.stream()
+        profileSkills.stream()
                 .filter(Objects::nonNull)
                 .map(this::simplifySkill)
                 .forEach(candidateSkills::add);
@@ -350,96 +360,112 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .map(this::simplifySkill)
                 .forEach(candidateSkills::add);
 
-        // =====================================================
-        // Normalize Required Skills
-        // =====================================================
-
-        Set<String> requiredSkills = jobSkills.stream()
+        Set<String> required = requiredSkills.stream()
                 .filter(Objects::nonNull)
                 .map(this::simplifySkill)
                 .collect(Collectors.toSet());
 
-        // =====================================================
-        // Resume Analysis
-        // =====================================================
-
-        String normalizedResume =
-                normalize(
-                        Optional.ofNullable(resumeText)
-                                .orElse("")
-                );
-
-        String normalizedJobDesc =
-                normalize(
-                        Optional.ofNullable(jobDescription)
-                                .orElse("")
-                );
-
-        long resumeMatchedSkills =
-                requiredSkills.stream()
-                        .filter(normalizedResume::contains)
-                        .count();
-
-        // =====================================================
-        // Skill Match Score (70%)
-        // =====================================================
+        // ====================================================
+        // 1. Required Skills Match (40%)
+        // ====================================================
 
         long matchedSkills =
-                requiredSkills.stream()
+                required.stream()
                         .filter(candidateSkills::contains)
                         .count();
 
         double skillScore =
-                requiredSkills.isEmpty()
+                required.isEmpty()
                         ? 0
-                        : ((double) matchedSkills / requiredSkills.size()) * 70;
+                        : ((double) matchedSkills / required.size()) * 40;
 
-        // =====================================================
-        // Resume Relevance Score (20%)
-        // =====================================================
+        // ====================================================
+        // 2. Resume Skill Match (25%)
+        // ====================================================
 
-        double resumeScore =
-                requiredSkills.isEmpty()
-                        ? 0
-                        : ((double) resumeMatchedSkills / requiredSkills.size()) * 20;
-
-        // =====================================================
-        // Extra Skill Bonus (10%)
-        // =====================================================
-
-        Set<String> uniqueExtraSkills =
-                extraSkills.stream()
-                        .filter(Objects::nonNull)
-                        .map(this::simplifySkill)
-                        .collect(Collectors.toSet());
-
-        double extraSkillScore =
-                Math.min(uniqueExtraSkills.size(), 10);
-
-        // =====================================================
-        // Job Description Alignment Bonus
-        // =====================================================
-
-        long jdMatches =
-                requiredSkills.stream()
-                        .filter(normalizedJobDesc::contains)
-                        .filter(normalizedResume::contains)
+        long resumeSkillMatches =
+                required.stream()
+                        .filter(resume::contains)
                         .count();
 
-        double jdBonus =
-                requiredSkills.isEmpty()
+        double resumeSkillScore =
+                required.isEmpty()
                         ? 0
-                        : ((double) jdMatches / requiredSkills.size()) * 5;
+                        : ((double) resumeSkillMatches / required.size()) * 25;
 
-        // =====================================================
+        // ====================================================
+        // 3. JD Alignment (15%)
+        // ====================================================
+
+        long jdMatches =
+                required.stream()
+                        .filter(jd::contains)
+                        .filter(resume::contains)
+                        .count();
+
+        double jdScore =
+                required.isEmpty()
+                        ? 0
+                        : ((double) jdMatches / required.size()) * 15;
+
+        // ====================================================
+        // 4. Experience Keywords (10%)
+        // ====================================================
+
+        List<String> expKeywords = List.of(
+                "intern",
+                "internship",
+                "experience",
+                "project",
+                "worked",
+                "developer",
+                "engineer"
+        );
+
+        long expCount =
+                expKeywords.stream()
+                        .filter(resume::contains)
+                        .count();
+
+        double experienceScore =
+                Math.min(expCount * 2.0, 10);
+
+        // ====================================================
+        // 5. Resume Quality (10%)
+        // ====================================================
+
+        double qualityScore = 0;
+
+        if (resume.length() > 500)
+            qualityScore += 3;
+
+        if (resume.length() > 1000)
+            qualityScore += 2;
+
+        if (resume.contains("project"))
+            qualityScore += 2;
+
+        if (resume.contains("education"))
+            qualityScore += 1;
+
+        if (resume.contains("skill"))
+            qualityScore += 1;
+
+        if (resume.contains("certification"))
+            qualityScore += 1;
+
+        qualityScore = Math.min(qualityScore, 10);
+
+        // ====================================================
         // Final Score
-        // =====================================================
+        // ====================================================
 
         double finalScore =
-                skillScore
-                        + resumeScore
-                        + extraSkillScore
-                        + jdBonus;
+                skillScore +
+                        resumeSkillScore +
+                        jdScore +
+                        experienceScore +
+                        qualityScore;
 
         return Math.round(
                 Math.min(finalScore, 100.0) * 100
