@@ -1,23 +1,15 @@
 package com.jobportal.dto;
 
-import com.jobportal.entity.JobCategory;
-import com.jobportal.entity.JobSkill;
+import com.jobportal.dto.CompanyDTO;
+import com.jobportal.dto.RecruiterDTO;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Date;
-//package com.jobportal.dto;
 
-import lombok.*;
-import java.time.LocalDateTime;
-import java.util.List;
-//import com/jobportal/entity/Job.java
-import com.jobportal.entity.Job;
-
+@Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
