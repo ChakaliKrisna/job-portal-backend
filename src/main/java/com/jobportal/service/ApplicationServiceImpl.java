@@ -814,10 +814,17 @@ public class ApplicationServiceImpl implements ApplicationService {
                         .stream()
                         .map(JobSkill::getSkill)
                         .toList();
+        Set<String> candidateSkills =
+                app.getSkills()
+                        .stream()
+                        .map(ApplicationSkill::getSkill)
+                        .map(String::toLowerCase)
+                        .collect(Collectors.toSet());
 
         List<String> missingSkills =
                 jobSkills.stream()
-                        .filter(skill -> !snapshotSet.contains(skill.toLowerCase()))
+                        .filter(skill ->
+                                !candidateSkills.contains(skill.toLowerCase()))
                         .toList();
         String companyName = Optional.ofNullable(app.getJob())
                 .map(Job::getCompany)
