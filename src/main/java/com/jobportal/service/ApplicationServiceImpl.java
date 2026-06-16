@@ -156,7 +156,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                     s.setApplication(app);
                     return s;
                 })
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
 
         app.setSkills(skillEntities);
 
@@ -191,7 +191,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         // ================= Save Application =================
         applicationRepo.save(app);
-        applicationRepo.save(app);
+//        applicationRepo.save(app);
 
         job.setApplicantsCount(job.getApplicantsCount() + 1);
         jobRepo.save(job);
