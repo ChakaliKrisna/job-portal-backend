@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "jobs") // Best practice: explicitly define lower-case plural table names for SQL compatibility
+@Table(name = "job") // Best practice: explicitly define lower-case plural table names for SQL compatibility
 @Getter
 @Setter
 @NoArgsConstructor

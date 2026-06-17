@@ -30,7 +30,7 @@ public class JobResponseDTO {
     private Integer openings;
 
     private LocalDateTime postedDate;
-    private LocalDateTime closedDate;
+    private LocalDateTime ClosedDate;
     private Integer applicantsCount;
 
     private CompanyDTO company;
