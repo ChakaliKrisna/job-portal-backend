@@ -20,4 +20,6 @@ public class JobCardDTO {
 
     private String companyName;
     private String companyLogo;
+    private Integer openings;
+    private Integer applicantCount;
 }

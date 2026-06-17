@@ -488,7 +488,9 @@ public class JobServiceImpl implements JobService {
                 job.getJobType() != null ? job.getJobType().name() : null,
                 job.getWorkMode() != null ? job.getWorkMode().name() : null,
                 job.getCompany() != null ? job.getCompany().getName() : null,
-                job.getCompany() != null ? job.getCompany().getLogoUrl() : null
+                job.getCompany() != null ? job.getCompany().getLogoUrl() : null,
+                job.getOpenings(),
+                job.getApplicantsCount()
         );
     }
     }
