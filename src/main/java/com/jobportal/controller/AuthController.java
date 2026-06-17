@@ -21,13 +21,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
-@CrossOrigin(
-        origins = {
-                "http://localhost:5173",
-                "https://job-portal-frontend-1i7s.vercel.app"
-        },
-        allowCredentials = "true"
-)
+
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
