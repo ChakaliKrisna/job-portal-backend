@@ -10,10 +10,7 @@ import com.jobportal.repository.JobRepository;
 
 import com.jobportal.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -304,20 +301,24 @@ public class JobServiceImpl implements JobService {
             JobCategory category,
             Pageable pageable) {
 
-        Specification<Job> spec = Specification
-                .where(JobSpecification.keyword(keyword))
-                .and(JobSpecification.location(location))
-                .and(JobSpecification.jobType(jobType))
-                .and(JobSpecification.workMode(workMode))
-                .and(JobSpecification.experienceLevel(experienceLevel))
-                .and(JobSpecification.status(jobStatus))
-                .and(JobSpecification.category(category))
-                .and(JobSpecification.minSalary(minSalary));
+        List<Job> jobs = jobRepo.findJobs(
+                jobStatus,
+                jobType,
+                workMode,
+                experienceLevel,
+                category,
+                minSalary,
+                location,
+                keyword,
+                pageable
+        );
 
-        return jobRepo.findAll(spec, pageable)
-                .map(this::convertToCardDTO);
+        List<JobCardDTO> dtoList = jobs.stream()
+                .map(this::convertToCardDTO)
+                .toList();
+
+        return new PageImpl<>(dtoList, pageable, dtoList.size());
     }
-
 //
 //    @Override
 //    public <T> Optional<T> getAllJobs(String keyword, String location, JobType jobType, WorkMode workMode, ExperienceLevel experienceLevel, JobStatus jobStatus, double v, JobCategory category, Pageable pageable) {
@@ -341,45 +342,31 @@ public class JobServiceImpl implements JobService {
             JobCategory category,
             Pageable pageable) {
 
-        String email = SecurityContextHolder
-                .getContext()
+        String email = SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getName();
 
         User recruiter = userRepo.findByEmail(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Specification<Job> spec =
-                Specification.where(
-                        JobSpecification.recruiter(recruiter.getId()));
+        List<Job> jobs = jobRepo.findMyJobs(
+                recruiter.getId(),
+                keyword,
+                location,
+                jobType,
+                workMode,
+                experienceLevel,
+                status,
+                category,
+                minSalary,
+                pageable
+        );
 
-        if (keyword != null && !keyword.isBlank())
-            spec = spec.and(JobSpecification.keyword(keyword));
+        List<JobResponseDTO> dtoList = jobs.stream()
+                .map(this::convertToDTO)
+                .toList();
 
-        if (location != null && !location.isBlank())
-            spec = spec.and(JobSpecification.location(location));
-
-        if (jobType != null)
-            spec = spec.and(JobSpecification.jobType(jobType));
-
-        if (workMode != null)
-            spec = spec.and(JobSpecification.workMode(workMode));
-
-        if (experienceLevel != null)
-            spec = spec.and(JobSpecification.experienceLevel(experienceLevel));
-
-        if (status != null)
-            spec = spec.and(JobSpecification.status(status));
-
-        if (category != null)
-            spec = spec.and(JobSpecification.category(category));
-
-        if (minSalary != null)
-            spec = spec.and(JobSpecification.minSalary(minSalary));
-
-        return jobRepo.findAll(spec, pageable)
-                .map(this::convertToDTO);
+        return new PageImpl<>(dtoList, pageable, dtoList.size());
     }
 //    @Override
 //    public Page<JobResponseDTO> getMyJobs(String keyword, String location, String jobType, String workMode, String experienceLevel, Pageable pageable) {
@@ -479,7 +466,6 @@ public class JobServiceImpl implements JobService {
                         new RuntimeException("User not found"));
     }
     private JobCardDTO convertToCardDTO(Job job) {
-
         return new JobCardDTO(
                 job.getPublicId(),
                 job.getTitle(),
@@ -494,6 +480,7 @@ public class JobServiceImpl implements JobService {
         );
     }
     }
+
 
 
 

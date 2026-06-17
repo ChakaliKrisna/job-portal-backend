@@ -1,10 +1,7 @@
 package com.jobportal.repository;
 
 import com.jobportal.dto.JobResponseDTO;
-import com.jobportal.entity.Company;
-import com.jobportal.entity.Job;
-import com.jobportal.entity.JobStatus;
-import com.jobportal.entity.User;
+import com.jobportal.entity.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -12,6 +9,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -66,8 +64,56 @@ public interface JobRepository
             "company",
             "recruiter"
     })
-    Page<Job> findAll(
-            Specification<Job> spec,
+    @Query("""
+        SELECT j FROM Job j
+        LEFT JOIN FETCH j.company c
+        LEFT JOIN FETCH j.recruiter r
+        WHERE (:status IS NULL OR j.status = :status)
+        AND (:jobType IS NULL OR j.jobType = :jobType)
+        AND (:workMode IS NULL OR j.workMode = :workMode)
+        AND (:experienceLevel IS NULL OR j.experienceLevel = :experienceLevel)
+        AND (:category IS NULL OR j.category = :category)
+        AND (:minSalary IS NULL OR j.salary >= :minSalary)
+        AND (:location IS NULL OR j.location = :location)
+        AND (:keyword IS NULL OR LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%')))
+        ORDER BY j.postedDate DESC
+    """)
+    List<Job> findJobs(
+            @Param("status") JobStatus status,
+            @Param("jobType") JobType jobType,
+            @Param("workMode") WorkMode workMode,
+            @Param("experienceLevel") ExperienceLevel experienceLevel,
+            @Param("category") JobCategory category,
+            @Param("minSalary") Double minSalary,
+            @Param("location") String location,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+    @Query("""
+        SELECT j FROM Job j
+        LEFT JOIN FETCH j.company c
+        LEFT JOIN FETCH j.recruiter r
+        WHERE j.recruiter.id = :recruiterId
+        AND (:keyword IS NULL OR LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%')))
+        AND (:location IS NULL OR j.location = :location)
+        AND (:jobType IS NULL OR j.jobType = :jobType)
+        AND (:workMode IS NULL OR j.workMode = :workMode)
+        AND (:experienceLevel IS NULL OR j.experienceLevel = :experienceLevel)
+        AND (:status IS NULL OR j.status = :status)
+        AND (:category IS NULL OR j.category = :category)
+        AND (:minSalary IS NULL OR j.salary >= :minSalary)
+        ORDER BY j.postedDate DESC
+    """)
+    List<Job> findMyJobs(
+            @Param("recruiterId") Long recruiterId,
+            @Param("keyword") String keyword,
+            @Param("location") String location,
+            @Param("jobType") JobType jobType,
+            @Param("workMode") WorkMode workMode,
+            @Param("experienceLevel") ExperienceLevel experienceLevel,
+            @Param("status") JobStatus status,
+            @Param("category") JobCategory category,
+            @Param("minSalary") Double minSalary,
             Pageable pageable
     );
 
