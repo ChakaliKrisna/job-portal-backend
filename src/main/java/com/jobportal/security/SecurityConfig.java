@@ -59,7 +59,7 @@ public class SecurityConfig {
 
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:5173",
-                "https://your-frontend-domain.com"
+                "https://job-portal-frontend-1i7s.vercel.app"
         ));
 
         configuration.setAllowedMethods(
