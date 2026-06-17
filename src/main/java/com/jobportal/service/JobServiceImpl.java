@@ -229,30 +229,11 @@ public class JobServiceImpl implements JobService {
         dto.setLocation(job.getLocation());
         dto.setSalary(job.getSalary());
 
-        dto.setJobType(
-                job.getJobType() != null
-                        ? job.getJobType().name()
-                        : null);
-
-        dto.setWorkMode(
-                job.getWorkMode() != null
-                        ? job.getWorkMode().name()
-                        : null);
-
-        dto.setExperienceLevel(
-                job.getExperienceLevel() != null
-                        ? job.getExperienceLevel().name()
-                        : null);
-
-        dto.setStatus(
-                job.getStatus() != null
-                        ? job.getStatus().name()
-                        : null);
-
-        dto.setCategory(
-                job.getCategory() != null
-                        ? job.getCategory().name()
-                        : null);
+        dto.setJobType(enumName(job.getJobType()));
+        dto.setWorkMode(enumName(job.getWorkMode()));
+        dto.setExperienceLevel(enumName(job.getExperienceLevel()));
+        dto.setStatus(enumName(job.getStatus()));
+        dto.setCategory(enumName(job.getCategory()));
 
         dto.setDescription(job.getDescription());
         dto.setOpenings(job.getOpenings());
@@ -260,35 +241,35 @@ public class JobServiceImpl implements JobService {
         dto.setClosedDate(job.getClosingDate());
         dto.setApplicantsCount(job.getApplicantsCount());
 
-        // Company
-        if (job.getCompany() != null) {
-
-            CompanyDTO companyDTO = new CompanyDTO();
-
-            companyDTO.setPublicId(job.getCompany().getPublicId());
-            companyDTO.setName(job.getCompany().getName());
-            companyDTO.setLogoUrl(job.getCompany().getLogoUrl());
-            companyDTO.setWebsite(job.getCompany().getWebsite());
-            companyDTO.setLocation(job.getCompany().getLocation());
-
-            dto.setCompany(companyDTO);
-        }
-
-        // Recruiter
-        if (job.getRecruiter() != null) {
-
-            RecruiterDTO recruiterDTO = new RecruiterDTO(
-                    job.getRecruiter().getPublicId(),
-                    job.getRecruiter().getName(),
-                    job.getRecruiter().getEmail()
-            );
-
-            dto.setRecruiter(recruiterDTO);
-        }
+        dto.setCompany(toCompanyDTO(job.getCompany()));
+        dto.setRecruiter(toRecruiterDTO(job.getRecruiter()));
 
         return dto;
     }
+    private CompanyDTO toCompanyDTO(Company company) {
+        if (company == null) return null;
 
+        CompanyDTO dto = new CompanyDTO();
+        dto.setPublicId(company.getPublicId());
+        dto.setName(company.getName());
+        dto.setLogoUrl(company.getLogoUrl());
+        dto.setWebsite(company.getWebsite());
+        dto.setLocation(company.getLocation());
+
+        return dto;
+    }
+    private String enumName(Enum<?> e) {
+        return e != null ? e.name() : null;
+    }
+    private RecruiterDTO toRecruiterDTO(User recruiter) {
+        if (recruiter == null) return null;
+
+        return new RecruiterDTO(
+                recruiter.getPublicId(),
+                recruiter.getName(),
+                recruiter.getEmail()
+        );
+    }
     @Override
     public Page<JobCardDTO> getAllJobs(
             String keyword,
