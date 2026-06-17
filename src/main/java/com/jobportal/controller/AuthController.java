@@ -24,7 +24,7 @@ import java.util.UUID;
 @CrossOrigin(
         origins = {
                 "http://localhost:5173",
-                "https://your-frontend-domain.com"
+                "https://job-portal-frontend-1i7s.vercel.app"
         },
         allowCredentials = "true"
 )
