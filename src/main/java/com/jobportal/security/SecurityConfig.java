@@ -2,6 +2,7 @@ package com.jobportal.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -41,6 +42,7 @@ public class SecurityConfig {
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/job-portal/jobs/**").permitAll()
                         .requestMatchers("/job-portal/company/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/job-portal/jobs/**").permitAll()
 
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
 

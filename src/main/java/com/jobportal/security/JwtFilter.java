@@ -23,24 +23,26 @@ public class JwtFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String path = request.getRequestURI();
+        String method = request.getMethod();
 
-        System.out.println("JWT FILTER -> " + path);
+        System.out.println("JWT FILTER -> " + method + " " + path);
 
-        // 🔥 FIX 1: SKIP CORS PREFLIGHT
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+        // ✅ 1. Skip CORS preflight
+        if ("OPTIONS".equalsIgnoreCase(method)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // ✅ public endpoints
-        if (path.contains("/auth/login") ||
-                path.contains("/auth/register")) {
+        // ✅ 2. Public endpoints (NO JWT REQUIRED)
+        if (isPublicEndpoint(path)) {
             filterChain.doFilter(request, response);
             return;
         }
 
+        // ✅ 3. Get Authorization header
         String header = request.getHeader("Authorization");
 
+        // 👉 If no token → continue (Spring Security will decide)
         if (header == null || !header.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -49,12 +51,17 @@ public class JwtFilter extends OncePerRequestFilter {
         try {
             String token = header.substring(7);
 
+            // ✅ 4. Validate token
             if (JwtUtil.validateToken(token)) {
 
                 String email = JwtUtil.extractEmail(token);
                 String role = JwtUtil.extractRole(token);
 
-                if (role != null && !role.startsWith("ROLE_")) {
+                if (role == null) {
+                    role = "ROLE_USER";
+                }
+
+                if (!role.startsWith("ROLE_")) {
                     role = "ROLE_" + role;
                 }
 
@@ -74,5 +81,13 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+    private boolean isPublicEndpoint(String path) {
+
+        return path.startsWith("/auth/") ||
+                path.startsWith("/job-portal/jobs") ||   // 👈 YOUR MAIN FIX
+                path.startsWith("/uploads/") ||
+                path.contains("/swagger") ||
+                path.contains("/api-docs");
     }
 }
