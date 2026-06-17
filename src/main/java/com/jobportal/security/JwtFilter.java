@@ -17,32 +17,31 @@ import java.util.List;
 public class JwtFilter extends OncePerRequestFilter {
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
-            throws ServletException, IOException {
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
 
         String path = request.getRequestURI();
         String method = request.getMethod();
 
-        System.out.println("JWT FILTER -> " + method + " " + path);
-
-        // ✅ 1. Skip CORS preflight
+        // skip preflight
         if ("OPTIONS".equalsIgnoreCase(method)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // ✅ 2. Public endpoints (NO JWT REQUIRED)
-        if (isPublicEndpoint(path)) {
+        // public routes
+        if (path.startsWith("/auth/")
+                || path.startsWith("/job-portal/jobs")
+                || path.startsWith("/uploads/")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // ✅ 3. Get Authorization header
         String header = request.getHeader("Authorization");
 
-        // 👉 If no token → continue (Spring Security will decide)
         if (header == null || !header.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -51,19 +50,13 @@ public class JwtFilter extends OncePerRequestFilter {
         try {
             String token = header.substring(7);
 
-            // ✅ 4. Validate token
             if (JwtUtil.validateToken(token)) {
 
                 String email = JwtUtil.extractEmail(token);
                 String role = JwtUtil.extractRole(token);
 
-                if (role == null) {
-                    role = "ROLE_USER";
-                }
-
-                if (!role.startsWith("ROLE_")) {
-                    role = "ROLE_" + role;
-                }
+                if (role == null) role = "ROLE_USER";
+                if (!role.startsWith("ROLE_")) role = "ROLE_" + role;
 
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(
@@ -81,13 +74,5 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
-    }
-    private boolean isPublicEndpoint(String path) {
-
-        return path.startsWith("/auth/") ||
-                path.startsWith("/job-portal/jobs") ||   // 👈 YOUR MAIN FIX
-                path.startsWith("/uploads/") ||
-                path.contains("/swagger") ||
-                path.contains("/api-docs");
     }
 }

@@ -8,45 +8,49 @@ import java.util.Date;
 
 public class JwtUtil {
 
-    private static final String SECRET = "mysecretkeymysecretkeymysecretkey";
-    private static final Key key = Keys.hmacShaKeyFor(SECRET.getBytes());
+    private static final String SECRET = "my_super_secret_key_my_super_secret_key_123456";
+    private static final long EXPIRATION = 1000 * 60 * 60 * 24; // 1 day
 
-    // ✅ Generate token with role
+    private static Key getSigningKey() {
+        return Keys.hmacShaKeyFor(SECRET.getBytes());
+    }
+
+    // ✅ GENERATE TOKEN (FIX for your error)
     public static String generateToken(String email, String role) {
         return Jwts.builder()
                 .setSubject(email)
                 .claim("role", role)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60))
-                .signWith(key)
+                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // ✅ Extract email
+    // ✅ EXTRACT EMAIL
     public static String extractEmail(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(key)
+                .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody()
                 .getSubject();
     }
 
-    // ✅ Extract role
+    // ✅ EXTRACT ROLE
     public static String extractRole(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
+        return (String) Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody()
-                .get("role", String.class);
+                .get("role");
     }
 
-    // ✅ Validate only
+    // ✅ VALIDATE TOKEN
     public static boolean validateToken(String token) {
         try {
             Jwts.parserBuilder()
-                    .setSigningKey(key)
+                    .setSigningKey(getSigningKey())
                     .build()
                     .parseClaimsJws(token);
             return true;
