@@ -65,30 +65,30 @@ public interface JobRepository
             "recruiter"
     })
     @Query("""
-        SELECT j FROM Job j
-        LEFT JOIN FETCH j.company c
-        LEFT JOIN FETCH j.recruiter r
-        WHERE (:status IS NULL OR j.status = :status)
-        AND (:jobType IS NULL OR j.jobType = :jobType)
-        AND (:workMode IS NULL OR j.workMode = :workMode)
-        AND (:experienceLevel IS NULL OR j.experienceLevel = :experienceLevel)
-        AND (:category IS NULL OR j.category = :category)
-        AND (:minSalary IS NULL OR j.salary >= :minSalary)
-        AND (:location IS NULL OR j.location = :location)
-        AND (:keyword IS NULL OR LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%')))
-        ORDER BY j.postedDate DESC
-    """)
-    List<Job> findJobs(
-            @Param("status") JobStatus status,
-            @Param("jobType") JobType jobType,
-            @Param("workMode") WorkMode workMode,
-            @Param("experienceLevel") ExperienceLevel experienceLevel,
-            @Param("category") JobCategory category,
-            @Param("minSalary") Double minSalary,
-            @Param("location") String location,
-            @Param("keyword") String keyword,
+    SELECT j FROM Job j
+    JOIN FETCH j.company c
+    WHERE (:status IS NULL OR j.status = :status)
+    AND (:jobType IS NULL OR j.jobType = :jobType)
+    AND (:workMode IS NULL OR j.workMode = :workMode)
+    AND (:experienceLevel IS NULL OR j.experienceLevel = :experienceLevel)
+    AND (:category IS NULL OR j.category = :category)
+    AND (:minSalary IS NULL OR j.salary >= :minSalary)
+    AND (:location IS NULL OR j.location = :location)
+    AND (:keyword IS NULL OR LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%')))
+    ORDER BY j.postedDate DESC
+""")
+    Page<Job> findFilteredJobs(
+            JobStatus status,
+            JobType jobType,
+            WorkMode workMode,
+            ExperienceLevel experienceLevel,
+            JobCategory category,
+            Double minSalary,
+            String location,
+            String keyword,
             Pageable pageable
     );
+
     @Query("""
         SELECT j FROM Job j
         LEFT JOIN FETCH j.company c

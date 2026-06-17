@@ -301,7 +301,7 @@ public class JobServiceImpl implements JobService {
             JobCategory category,
             Pageable pageable) {
 
-        List<Job> jobs = jobRepo.findJobs(
+        return jobRepo.findFilteredJobs(
                 jobStatus,
                 jobType,
                 workMode,
@@ -311,16 +311,9 @@ public class JobServiceImpl implements JobService {
                 location,
                 keyword,
                 pageable
-        );
-
-        List<JobCardDTO> dtoList = jobs.stream()
-                .map(this::convertToCardDTO)
-                .toList();
-
-        return new PageImpl<>(dtoList, pageable, dtoList.size());
+        ).map(this::convertToCardDTO);
     }
-//
-//    @Override
+//    Override
 //    public <T> Optional<T> getAllJobs(String keyword, String location, JobType jobType, WorkMode workMode, ExperienceLevel experienceLevel, JobStatus jobStatus, double v, JobCategory category, Pageable pageable) {
 //        return Optional.empty();
 //    }
@@ -473,8 +466,8 @@ public class JobServiceImpl implements JobService {
                 job.getSalary(),
                 job.getJobType() != null ? job.getJobType().name() : null,
                 job.getWorkMode() != null ? job.getWorkMode().name() : null,
-                job.getCompany() != null ? job.getCompany().getName() : null,
-                job.getCompany() != null ? job.getCompany().getLogoUrl() : null,
+                job.getCompany().getName(),      // SAFE now (JOIN FETCH)
+                job.getCompany().getLogoUrl(),   // SAFE now
                 job.getOpenings(),
                 job.getApplicantsCount()
         );
