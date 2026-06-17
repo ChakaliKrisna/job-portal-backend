@@ -13,62 +13,66 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
-@Override
-protected void doFilterInternal(HttpServletRequest request,
-                                HttpServletResponse response,
-                                FilterChain filterChain)
-        throws ServletException, IOException {
+@Component
+public class JwtFilter extends OncePerRequestFilter {
 
-    String path = request.getRequestURI();
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
 
-    System.out.println("JWT FILTER -> " + path);
+        String path = request.getRequestURI();
 
-    // 🔥 FIX 1: SKIP CORS PREFLIGHT
-    if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-        filterChain.doFilter(request, response);
-        return;
-    }
+        System.out.println("JWT FILTER -> " + path);
 
-    // ✅ public endpoints
-    if (path.contains("/auth/login") ||
-            path.contains("/auth/register")) {
-        filterChain.doFilter(request, response);
-        return;
-    }
-
-    String header = request.getHeader("Authorization");
-
-    if (header == null || !header.startsWith("Bearer ")) {
-        filterChain.doFilter(request, response);
-        return;
-    }
-
-    try {
-        String token = header.substring(7);
-
-        if (JwtUtil.validateToken(token)) {
-
-            String email = JwtUtil.extractEmail(token);
-            String role = JwtUtil.extractRole(token);
-
-            if (role != null && !role.startsWith("ROLE_")) {
-                role = "ROLE_" + role;
-            }
-
-            UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(
-                            email,
-                            null,
-                            List.of(new SimpleGrantedAuthority(role))
-                    );
-
-            SecurityContextHolder.getContext().setAuthentication(auth);
+        // 🔥 FIX 1: SKIP CORS PREFLIGHT
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
         }
 
-    } catch (Exception e) {
-        System.out.println("JWT ERROR: " + e.getMessage());
-        SecurityContextHolder.clearContext();
-    }
+        // ✅ public endpoints
+        if (path.contains("/auth/login") ||
+                path.contains("/auth/register")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
-    filterChain.doFilter(request, response);
+        String header = request.getHeader("Authorization");
+
+        if (header == null || !header.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        try {
+            String token = header.substring(7);
+
+            if (JwtUtil.validateToken(token)) {
+
+                String email = JwtUtil.extractEmail(token);
+                String role = JwtUtil.extractRole(token);
+
+                if (role != null && !role.startsWith("ROLE_")) {
+                    role = "ROLE_" + role;
+                }
+
+                UsernamePasswordAuthenticationToken auth =
+                        new UsernamePasswordAuthenticationToken(
+                                email,
+                                null,
+                                List.of(new SimpleGrantedAuthority(role))
+                        );
+
+                SecurityContextHolder.getContext().setAuthentication(auth);
+            }
+
+        } catch (Exception e) {
+            System.out.println("JWT ERROR: " + e.getMessage());
+            SecurityContextHolder.clearContext();
+        }
+
+        filterChain.doFilter(request, response);
+    }
 }
