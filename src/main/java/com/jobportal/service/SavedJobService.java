@@ -86,7 +86,9 @@ public class SavedJobService {
                                     : null,
                             job.getCompany() != null
                                     ? job.getCompany().getLogoUrl()
-                                    : null
+                                    : null,
+                            job.getOpenings(),
+                            job.getApplicantsCount()
                     );
                 })
                 .toList();
