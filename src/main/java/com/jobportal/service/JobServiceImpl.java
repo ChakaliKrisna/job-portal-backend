@@ -282,17 +282,23 @@ public class JobServiceImpl implements JobService {
             JobCategory category,
             Pageable pageable) {
 
-        return jobRepo.findFilteredJobs(
+        // Clean inputs to avoid whitespace mismatches
+        String cleanKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+        String cleanLocation = (location != null && !location.trim().isEmpty()) ? location.trim() : null;
+
+        Page<Job> jobsPage = jobRepo.findFilteredJobs(
                 jobStatus,
                 jobType,
                 workMode,
                 experienceLevel,
                 category,
                 minSalary,
-                location,
-                keyword,
+                cleanLocation,
+                cleanKeyword,
                 pageable
-        ).map(this::convertToCardDTO);
+        );
+
+        return jobsPage.map(this::convertToCardDTO);
     }
 //    Override
 //    public <T> Optional<T> getAllJobs(String keyword, String location, JobType jobType, WorkMode workMode, ExperienceLevel experienceLevel, JobStatus jobStatus, double v, JobCategory category, Pageable pageable) {
