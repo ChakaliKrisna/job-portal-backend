@@ -1,5 +1,6 @@
 package com.jobportal.repository;
 
+import com.jobportal.dto.JobResponseDTO;
 import com.jobportal.entity.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -89,4 +90,8 @@ public interface JobRepository extends JpaRepository<Job, Long>, JpaSpecificatio
             @Param("minSalary") Double minSalary,
             Pageable pageable
     );
+    // ✅ Fetches ONLY the columns required by the DTO constructor
+    @Query("SELECT new com.yourpackage.dto.JobResponseDTO(j.id, j.publicId, j.title, j.description, j.companyName) " +
+            "FROM Job j WHERE j.publicId = :publicId")
+    Optional<JobResponseDTO> findDtoByPublicId(@Param("publicId") String publicId);
 }

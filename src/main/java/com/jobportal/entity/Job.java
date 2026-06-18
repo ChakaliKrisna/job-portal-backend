@@ -9,12 +9,15 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-@Entity
-@Table(name = "job") // Best practice: explicitly define lower-case plural table names for SQL compatibility
+/// Best practice: explicitly define lower-case plural table names for SQL compatibility
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Entity
+@Table(name = "job", indexes = {
+        @Index(name = "idx_job_public_id", columnList = "publicId")
+})
 public class Job {
 
     @Id

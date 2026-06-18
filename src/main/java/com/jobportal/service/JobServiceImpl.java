@@ -10,6 +10,7 @@ import com.jobportal.repository.JobRepository;
 
 import com.jobportal.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -100,12 +101,11 @@ public class JobServiceImpl implements JobService {
 
 
     @Override
+    @Cacheable(value = "job", key = "#publicId", unless = "#result == null") // ⚡ Optional: Cache it to avoid DB hits entirely
     public JobResponseDTO getJobByPublicId(String publicId) {
-
-        Job job = jobRepo.findByPublicId(publicId)
+        // ✅ Direct delivery, 0ms mapping overhead
+        return jobRepo.findDtoByPublicId(publicId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found with id: " + publicId));
-
-        return convertToDTO(job); // ✅ convert entity → DTO
     }
 
     @Override
@@ -223,6 +223,8 @@ public class JobServiceImpl implements JobService {
     public JobResponseDTO convertToDTO(Job job) {
 
         JobResponseDTO dto = new JobResponseDTO();
+
+
 
         dto.setPublicId(job.getPublicId());
         dto.setTitle(job.getTitle());
