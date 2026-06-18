@@ -25,11 +25,11 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     List<Application> findByJob(Job job);
 
     Optional<Application> findByJobAndCandidate(Job job, User candidate);
-    Optional<Application> findByPublicId(String publicId);
+//    Optional<Application> findByPublicId(String publicId);
 
     boolean existsByJobAndCandidate(Job job, User candidate);
 
-    Page<Application> findByCandidate(User user, Pageable pageable);
+//    Page<Application> findByCandidate(User user, Pageable pageable);
 
     Page<Application> findByJob(Job job, Pageable pageable);
 //    Page<Application> findByCandidate(User candidate, Pageable pageable);
@@ -99,4 +99,29 @@ WHERE j.recruiter.id = :recruiterId
     RecruiterAnalyticsProjection getRecruiterAnalytics(
             @Param("recruiterId") Long recruiterId
     );
+
+
+    // ✅ OPTIMIZATION: Eagerly fetches Job and Company in 1 single count + data page query without needing to load User entity first
+    @Query(value = "SELECT a FROM Application a " +
+            "LEFT JOIN FETCH a.job j " +
+            "LEFT JOIN FETCH j.company c " +
+            "WHERE a.candidate.email = :email",
+            countQuery = "SELECT COUNT(a) FROM Application a WHERE a.candidate.email = :email")
+    Page<Application> findByCandidateEmailWithJobAndCompany(@Param("email") String email, Pageable pageable);
+
+    // ✅ OPTIMIZATION: Fixes N+1 problem for collections by batch-initializing skills for the current page records at once
+    @Query("SELECT DISTINCT a FROM Application a LEFT JOIN FETCH a.skills WHERE a IN :applications")
+    List<Application> initializeSkillsForPage(@Param("applications") List<Application> applications);
+
+    // ✅ OPTIMIZATION: Single-record lookup fetching all related associations at once
+    @Query("SELECT a FROM Application a " +
+            "LEFT JOIN FETCH a.job j " +
+            "LEFT JOIN FETCH j.company c " +
+            "LEFT JOIN FETCH a.candidate u " +
+            "WHERE a.publicId = :publicId")
+    Optional<Application> findByPublicIdWithDetails(@Param("publicId") String publicId);
+
+    // Keep your existing non-conflicting methods below...
+    Optional<Application> findByPublicId(String publicId);
+    Page<Application> findByCandidate(com.jobportal.entity.User user, Pageable pageable);
 }

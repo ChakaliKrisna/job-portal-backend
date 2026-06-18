@@ -4,6 +4,7 @@ import com.jobportal.dto.*;
 import com.jobportal.entity.*;
 import com.jobportal.repository.CompanyRepository;
 import com.jobportal.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.apache.tika.Tika;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 
 
 @Service
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     @Autowired
@@ -299,92 +301,77 @@ public class UserServiceImpl implements UserService {
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
     }
+//    @Autowired
+    private final com.jobportal.service.ResumeAsyncTaskService resumeAsyncTaskService; // Inject this helper service
+//    private final UserRepository userRepository;
+//    private final StudentProfileRepository studentProfileRepository;
+
     public String uploadStudentFiles(
             String email,
             MultipartFile profileImage,
             MultipartFile resume
     ) {
-
         try {
-
             String basePath = "uploads/";
-
             Path profileDir = Paths.get(basePath + "profile-images/");
             Path resumeDir = Paths.get(basePath + "resumes/");
 
+            // Create directories safely
             Files.createDirectories(profileDir);
             Files.createDirectories(resumeDir);
 
-            // ================= GET USER =================
+            // ✅ OPTIMIZATION 1: Bypass intermediate User query. Fetch the profile directly.
+            StudentProfile profile = studentProfileRepository.findByUser_Email(email)
+                    .orElseGet(() -> {
+                        User user = userRepository.findByEmail(email)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                        StudentProfile newProfile = new StudentProfile();
+                        newProfile.setUser(user);
+                        return newProfile;
+                    });
 
-            User user = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-
-            StudentProfile profile = user.getStudentProfile();
-
-            if (profile == null) {
-                profile = new StudentProfile();
-                profile.setUser(user);
-            }
+            long timestamp = System.currentTimeMillis();
 
             // ================= SAVE PROFILE IMAGE =================
-
             if (profileImage != null && !profileImage.isEmpty()) {
-
-                String imgName =
-                        System.currentTimeMillis() + "_" +
-                                profileImage.getOriginalFilename();
-
+                // Use safe, sanitized filenames
+                String imgName = timestamp + "_" + profileImage.getOriginalFilename().replaceAll("[^a-zA-Z0-9.-]", "_");
                 Path imgPath = profileDir.resolve(imgName);
 
-                Files.write(imgPath, profileImage.getBytes());
+                // ✅ OPTIMIZATION 2: Native transfer handles system I/O directly without buffering full bytes to RAM
+                profileImage.transferTo(imgPath.toFile());
 
-                profile.setProfileImageUrl(
-                        "/uploads/profile-images/" + imgName
-                );
+                profile.setProfileImageUrl("/uploads/profile-images/" + imgName);
             }
 
             // ================= SAVE RESUME =================
-
-            if (resume != null && !resume.isEmpty()) {
-
-                String resumeName =
-                        System.currentTimeMillis() + "_" +
-                                resume.getOriginalFilename();
-
+            boolean hasNewResume = resume != null && !resume.isEmpty();
+            if (hasNewResume) {
+                String resumeName = timestamp + "_" + resume.getOriginalFilename().replaceAll("[^a-zA-Z0-9.-]", "_");
                 Path resumePath = resumeDir.resolve(resumeName);
 
-                Files.write(resumePath, resume.getBytes());
+                // Native high-speed transfer
+                resume.transferTo(resumePath.toFile());
 
-                // SAVE URL
-                profile.setResumeUrl(
-                        "/uploads/resumes/" + resumeName
-                );
-
-                // SAVE FILE NAME
-                profile.setResumeFileName(
-                        resume.getOriginalFilename()
-                );
-
-                // ================= EXTRACT TEXT =================
-
-                String extractedText =
-                        resumeExtractorService.extractText(resume);
-
-                // SAVE EXTRACTED TEXT
-                profile.setResumeText(extractedText);
+                profile.setResumeUrl("/uploads/resumes/" + resumeName);
+                profile.setResumeFileName(resume.getOriginalFilename());
             }
 
-            studentProfileRepository.save(profile);
+            // Save metadata fields first to secure an entity ID
+            profile = studentProfileRepository.save(profile);
+
+            // ================= ASYNC EXTRACT TEXT =================
+            if (hasNewResume) {
+                // ✅ OPTIMIZATION 3: Hand off the processing task to the worker pool
+                resumeAsyncTaskService.extractTextInBackground(profile.getId(), resume);
+            }
 
             return profile.getResumeUrl();
 
         } catch (Exception e) {
-
-            throw new RuntimeException("File upload failed", e);
+            throw new RuntimeException("File upload processing faulted", e);
         }
-    }
-    public StudentProfileResponse getStudentProfileByPublicId(String publicId) {
+    }   public StudentProfileResponse getStudentProfileByPublicId(String publicId) {
 
         User student = userRepository.findByPublicId(publicId)
                 .orElseThrow(() ->
