@@ -312,9 +312,11 @@ public class UserServiceImpl implements UserService {
             MultipartFile resume
     ) {
         try {
-            String basePath = "uploads/";
+            String basePath = System.getProperty("java.io.tmpdir") + "/uploads/";
             Path profileDir = Paths.get(basePath + "profile-images/");
             Path resumeDir = Paths.get(basePath + "resumes/");
+
+
 
             // Create directories safely
             Files.createDirectories(profileDir);
