@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -27,11 +28,14 @@ public class JobResponseDTO {
     private String category;
 
     private String description;
+    private String education;     // Recommended
     private Integer openings;
 
     private LocalDateTime postedDate;
-    private LocalDateTime ClosedDate;
+    private LocalDateTime closedDate;
     private Integer applicantsCount;
+
+    private List<String> skillsRequired;
 
     private CompanyDTO company;
     private RecruiterDTO recruiter;

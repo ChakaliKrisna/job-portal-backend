@@ -228,8 +228,6 @@ public class JobServiceImpl implements JobService {
 
         JobResponseDTO dto = new JobResponseDTO();
 
-
-
         dto.setPublicId(job.getPublicId());
         dto.setTitle(job.getTitle());
         dto.setLocation(job.getLocation());
@@ -242,10 +240,19 @@ public class JobServiceImpl implements JobService {
         dto.setCategory(enumName(job.getCategory()));
 
         dto.setDescription(job.getDescription());
+        dto.setEducation(job.getEducation());
         dto.setOpenings(job.getOpenings());
+
         dto.setPostedDate(job.getPostedDate());
         dto.setClosedDate(job.getClosingDate());
         dto.setApplicantsCount(job.getApplicantsCount());
+
+        dto.setSkillsRequired(
+                job.getSkillsRequired()
+                        .stream()
+                        .map(JobSkill::getSkill)
+                        .toList()
+        );
 
         dto.setCompany(toCompanyDTO(job.getCompany()));
         dto.setRecruiter(toRecruiterDTO(job.getRecruiter()));
