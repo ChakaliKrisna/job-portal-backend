@@ -15,10 +15,7 @@ import com.jobportal.repository.JobRepository;
 import com.jobportal.service.JobService;
 import com.jobportal.service.JobSpecification;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -50,17 +47,17 @@ public class JobController {
 //    @PreAuthorize("hasAnyRole('STUDENT','RECRUITER')")
 //    @Override
     @GetMapping
-    public ResponseEntity<Page<JobCardDTO>> getAllJobs(
+    public ResponseEntity<Slice<JobCardDTO>> getAllJobs( // ✅ Return type changed to Slice
 
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String location,
-            @RequestParam(required = false) JobType jobType,
-            @RequestParam(required = false) WorkMode workMode,
-            @RequestParam(required = false) ExperienceLevel experienceLevel,
-            @RequestParam(required = false) JobStatus jobStatus,
-            @RequestParam(required = false) Double minSalary,
-            @RequestParam(required = false) JobCategory category,
-            Pageable pageable) {
+                                                         @RequestParam(required = false) String keyword,
+                                                         @RequestParam(required = false) String location,
+                                                         @RequestParam(required = false) JobType jobType,
+                                                         @RequestParam(required = false) WorkMode workMode,
+                                                         @RequestParam(required = false) ExperienceLevel experienceLevel,
+                                                         @RequestParam(required = false) JobStatus jobStatus,
+                                                         @RequestParam(required = false) Double minSalary,
+                                                         @RequestParam(required = false) JobCategory category,
+                                                         Pageable pageable) {
 
         return ResponseEntity.ok(
                 service.getAllJobs(

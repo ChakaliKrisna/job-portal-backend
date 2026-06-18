@@ -40,17 +40,28 @@ public interface JobRepository extends JpaRepository<Job, Long>, JpaSpecificatio
     // ⭐ OPTIMIZATION 1: Use EntityGraph to eagerly pull company, recruiter, AND skills out in ONE database query.
     // This stops the application from running N+1 queries when mapping inside convertToCardDTO.
     @EntityGraph(attributePaths = {"company", "recruiter", "skillsRequired"})
-    @Query("""
-        SELECT j FROM Job j
-        WHERE (:status IS NULL OR j.status = :status)
-        AND (:jobType IS NULL OR j.jobType = :jobType)
-        AND (:workMode IS NULL OR j.workMode = :workMode)
-        AND (:experienceLevel IS NULL OR j.experienceLevel = :experienceLevel)
-        AND (:category IS NULL OR j.category = :category)
-        AND (:minSalary IS NULL OR j.salary >= :minSalary)
-        AND (:location IS NULL OR LOWER(j.location) = LOWER(:location))
-        AND (:keyword IS NULL OR LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%')))
-    """)
+    @Query(value = """
+    SELECT j FROM Job j
+    WHERE (:status IS NULL OR j.status = :status)
+    AND (:jobType IS NULL OR j.jobType = :jobType)
+    AND (:workMode IS NULL OR j.workMode = :workMode)
+    AND (:experienceLevel IS NULL OR j.experienceLevel = :experienceLevel)
+    AND (:category IS NULL OR j.category = :category)
+    AND (:minSalary IS NULL OR j.salary >= :minSalary)
+    AND (:location IS NULL OR LOWER(j.location) = LOWER(:location))
+    AND (:keyword IS NULL OR LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%')))
+""",
+            countQuery = """
+    SELECT COUNT(j) FROM Job j
+    WHERE (:status IS NULL OR j.status = :status)
+    AND (:jobType IS NULL OR j.jobType = :jobType)
+    AND (:workMode IS NULL OR j.workMode = :workMode)
+    AND (:experienceLevel IS NULL OR j.experienceLevel = :experienceLevel)
+    AND (:category IS NULL OR j.category = :category)
+    AND (:minSalary IS NULL OR j.salary >= :minSalary)
+    AND (:location IS NULL OR LOWER(j.location) = LOWER(:location))
+    AND (:keyword IS NULL OR LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%')))
+""")
     Page<Job> findFilteredJobs(
             @Param("status") JobStatus status,
             @Param("jobType") JobType jobType,

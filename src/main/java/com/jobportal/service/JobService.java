@@ -7,6 +7,7 @@ import com.jobportal.entity.*;
 import jdk.jfr.Category;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 
 import java.util.Optional;
 
@@ -49,17 +50,16 @@ public interface JobService {
 //    Page<JobResponseDTO> getMyJobs(String keyword, String location, String jobType, String workMode, String experienceLevel, Pageable pageable);
 
 //    JobResponseDTO convertToDTO(Job job);
-public Page<JobCardDTO> getAllJobs(
-        String keyword,
-        String location,
-        JobType jobType,
-        WorkMode workMode,
-        ExperienceLevel experienceLevel,
-        JobStatus jobStatus,
-        Double minSalary,
-        JobCategory category,
-        Pageable pageable);
-
+public Slice<JobCardDTO> getAllJobs( // ✅ Return type changed to Slice
+                                     String keyword,
+                                     String location,
+                                     JobType jobType,
+                                     WorkMode workMode,
+                                     ExperienceLevel experienceLevel,
+                                     JobStatus jobStatus,
+                                     Double minSalary,
+                                     JobCategory category,
+                                     Pageable pageable);
     Page<JobResponseDTO> getJobsByCompany(String publicId, int page, int size);
 
     Page<JobResponseDTO> getRecruiterJobs(int page, int size);

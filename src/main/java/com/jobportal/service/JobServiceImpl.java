@@ -271,22 +271,23 @@ public class JobServiceImpl implements JobService {
         );
     }
     @Override
-    public Page<JobCardDTO> getAllJobs(
-            String keyword,
-            String location,
-            JobType jobType,
-            WorkMode workMode,
-            ExperienceLevel experienceLevel,
-            JobStatus jobStatus,
-            Double minSalary,
-            JobCategory category,
-            Pageable pageable) {
+    public Slice<JobCardDTO> getAllJobs( // ✅ Return type changed to Slice
+                                         String keyword,
+                                         String location,
+                                         JobType jobType,
+                                         WorkMode workMode,
+                                         ExperienceLevel experienceLevel,
+                                         JobStatus jobStatus,
+                                         Double minSalary,
+                                         JobCategory category,
+                                         Pageable pageable) {
 
         // Clean inputs to avoid whitespace mismatches
         String cleanKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
         String cleanLocation = (location != null && !location.trim().isEmpty()) ? location.trim() : null;
 
-        Page<Job> jobsPage = jobRepo.findFilteredJobs(
+        // ✅ jobRepo now returns a Slice<Job> instead of a Page<Job>
+        Slice<Job> jobsSlice = jobRepo.findFilteredJobs(
                 jobStatus,
                 jobType,
                 workMode,
@@ -298,7 +299,8 @@ public class JobServiceImpl implements JobService {
                 pageable
         );
 
-        return jobsPage.map(this::convertToCardDTO);
+        // ✅ Map it seamlessly to your DTO
+        return jobsSlice.map(this::convertToCardDTO);
     }
 //    Override
 //    public <T> Optional<T> getAllJobs(String keyword, String location, JobType jobType, WorkMode workMode, ExperienceLevel experienceLevel, JobStatus jobStatus, double v, JobCategory category, Pageable pageable) {
