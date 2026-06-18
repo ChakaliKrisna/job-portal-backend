@@ -88,7 +88,7 @@ public class SecurityConfig {
 
         config.setAllowedOrigins(List.of(
                 "http://localhost:5173",
-                "https://job-portal-frontend-1i7s.vercel.app"
+                "https://job-portal-career-sethu-1i7s.vercel.app"
         ));
 
         config.setAllowedMethods(List.of(
