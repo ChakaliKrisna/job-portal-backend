@@ -146,7 +146,6 @@ public class JobController {
         return ResponseEntity.ok(service.getJobByPublicId(publicId));
     }
 
-    @PreAuthorize("hasAnyRole('STUDENT','RECRUITER')")
     @GetMapping("/companies/public/{publicId}")
     public ResponseEntity<Company> getCompanyByPublicId(@PathVariable String publicId) {
 
