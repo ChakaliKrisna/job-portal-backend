@@ -91,7 +91,16 @@ public interface JobRepository extends JpaRepository<Job, Long>, JpaSpecificatio
             Pageable pageable
     );
     // ✅ Fetches ONLY the columns required by the DTO constructor
-    @Query("SELECT new com.yourpackage.dto.JobResponseDTO(j.id, j.publicId, j.title, j.description, j.companyName) " +
-            "FROM Job j WHERE j.publicId = :publicId")
-    Optional<JobResponseDTO> findDtoByPublicId(@Param("publicId") String publicId);
+//    @Query("""
+//SELECT new com.jobportal.dto.JobResponseDTO(
+//    j.id,
+//    j.publicId,
+//    j.title,
+//    j.description,
+//    j.company.name
+//)
+//FROM Job j
+//WHERE j.publicId = :publicId
+//""")
+//    Optional<JobResponseDTO> findDtoByPublicId(@Param("publicId") String publicId);
 }

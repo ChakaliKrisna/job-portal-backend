@@ -101,11 +101,15 @@ public class JobServiceImpl implements JobService {
 
 
     @Override
-    @Cacheable(value = "job", key = "#publicId", unless = "#result == null") // ⚡ Optional: Cache it to avoid DB hits entirely
+    @Cacheable(value = "job", key = "#publicId", unless = "#result == null")
     public JobResponseDTO getJobByPublicId(String publicId) {
-        // ✅ Direct delivery, 0ms mapping overhead
-        return jobRepo.findDtoByPublicId(publicId)
-                .orElseThrow(() -> new ResourceNotFoundException("Job not found with id: " + publicId));
+
+        Job job = jobRepo.findByPublicId(publicId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Job not found with id: " + publicId));
+
+        return convertToDTO(job);
     }
 
     @Override
