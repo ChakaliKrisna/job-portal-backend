@@ -448,6 +448,10 @@ public class JobServiceImpl implements JobService {
                         new RuntimeException("User not found"));
     }
     private JobCardDTO convertToCardDTO(Job job) {
+        // Gracefully fallback to defaults if company data is missing
+        String companyName = (job.getCompany() != null) ? job.getCompany().getName() : "Anonymous Enterprise";
+        String companyLogo = (job.getCompany() != null) ? job.getCompany().getLogoUrl() : null;
+
         return new JobCardDTO(
                 job.getPublicId(),
                 job.getTitle(),
@@ -455,8 +459,8 @@ public class JobServiceImpl implements JobService {
                 job.getSalary(),
                 job.getJobType() != null ? job.getJobType().name() : null,
                 job.getWorkMode() != null ? job.getWorkMode().name() : null,
-                job.getCompany().getName(),      // SAFE now (JOIN FETCH)
-                job.getCompany().getLogoUrl(),   // SAFE now
+                companyName,      // Safe from NullPointerExceptions
+                companyLogo,      // Safe from NullPointerExceptions
                 job.getOpenings(),
                 job.getApplicantsCount()
         );

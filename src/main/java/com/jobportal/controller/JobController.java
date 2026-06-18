@@ -47,31 +47,33 @@ public class JobController {
 //    @PreAuthorize("hasAnyRole('STUDENT','RECRUITER')")
 //    @Override
     @GetMapping
-    public ResponseEntity<Slice<JobCardDTO>> getAllJobs( // ✅ Return type changed to Slice
+    public ResponseEntity<?> getFilteredJobs(
+            @RequestParam(required = false, defaultValue = "OPEN") JobStatus jobStatus,
+            @RequestParam(required = false) JobType jobType,
+            @RequestParam(required = false) WorkMode workMode,
+            @RequestParam(required = false) ExperienceLevel experienceLevel,
+            @RequestParam(required = false) JobCategory category,
+            @RequestParam(required = false) Double minSalary,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(defaultValue = "postedDate,desc") String sort
+    ) {
+        // Parse incoming text-based frontend sorting parameter arrays cleanly
+        String[] sortParams = sort.split(",");
+        Sort sortOrder = Sort.by(Sort.Direction.fromString(sortParams[1]), sortParams[0]);
+        Pageable pageable = PageRequest.of(page, size, sortOrder);
 
-                                                         @RequestParam(required = false) String keyword,
-                                                         @RequestParam(required = false) String location,
-                                                         @RequestParam(required = false) JobType jobType,
-                                                         @RequestParam(required = false) WorkMode workMode,
-                                                         @RequestParam(required = false) ExperienceLevel experienceLevel,
-                                                         @RequestParam(required = false) JobStatus jobStatus,
-                                                         @RequestParam(required = false) Double minSalary,
-                                                         @RequestParam(required = false) JobCategory category,
-                                                         Pageable pageable) {
-
-        return ResponseEntity.ok(
-                service.getAllJobs(
-                        keyword,
-                        location,
-                        jobType,
-                        workMode,
-                        experienceLevel,
-                        jobStatus,
-                        minSalary,
-                        category,
-                        pageable
-                )
+        // Fetch paginated chunk instantly via single JOIN transaction
+        Slice<Job> jobSlice = jobRepo.findFilteredJobs(
+                jobStatus, jobType, workMode, experienceLevel, category, minSalary, location, keyword, pageable
         );
+
+        // Map inside the functional streaming infrastructure block
+        Slice<JobCardDTO> dtoSlice = jobSlice.map(this::convertToCardDTO);
+
+        return ResponseEntity.ok(dtoSlice);
     }
     // ✅ UPDATE JOB
     @PreAuthorize("hasRole('RECRUITER')")
@@ -172,6 +174,24 @@ public class JobController {
                         page,
                         size
                 )
+        );
+    }
+    private JobCardDTO convertToCardDTO(Job job) {
+        // Gracefully fallback to defaults if company data is missing
+        String companyName = (job.getCompany() != null) ? job.getCompany().getName() : "Anonymous Enterprise";
+        String companyLogo = (job.getCompany() != null) ? job.getCompany().getLogoUrl() : null;
+
+        return new JobCardDTO(
+                job.getPublicId(),
+                job.getTitle(),
+                job.getLocation(),
+                job.getSalary(),
+                job.getJobType() != null ? job.getJobType().name() : null,
+                job.getWorkMode() != null ? job.getWorkMode().name() : null,
+                companyName,      // Safe from NullPointerExceptions
+                companyLogo,      // Safe from NullPointerExceptions
+                job.getOpenings(),
+                job.getApplicantsCount()
         );
     }
 
