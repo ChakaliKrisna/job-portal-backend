@@ -1,5 +1,7 @@
 package com.jobportal.service;
 
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import com.jobportal.dto.*;
 import com.jobportal.entity.*;
 import com.jobportal.repository.CompanyRepository;
@@ -22,10 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 //package com.jobportal.service;
@@ -37,7 +36,8 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserRepository userRepository;
-
+    @Autowired
+    private final Cloudinary cloudinary;
     @Autowired
     private CompanyRepository companyRepository;
 
@@ -318,14 +318,6 @@ public class UserServiceImpl implements UserService {
 
         try {
 
-            String basePath = System.getProperty("user.dir") + "/uploads/";
-
-            Path profileDir = Paths.get(basePath, "profile-images");
-            Path resumeDir = Paths.get(basePath, "resumes");
-
-            Files.createDirectories(profileDir);
-            Files.createDirectories(resumeDir);
-
             StudentProfile profile = studentProfileRepository
                     .findByUser_Email(email)
                     .orElseGet(() -> {
@@ -340,43 +332,49 @@ public class UserServiceImpl implements UserService {
                         return newProfile;
                     });
 
-            long timestamp = System.currentTimeMillis();
-
             // ================= PROFILE IMAGE =================
 
             if (profileImage != null && !profileImage.isEmpty()) {
 
-                String imageName = timestamp + "_"
-                        + profileImage.getOriginalFilename()
-                        .replaceAll("[^a-zA-Z0-9.-]", "_");
+                Map<?, ?> imageUpload =
+                        cloudinary.uploader().upload(
+                                profileImage.getBytes(),
+                                ObjectUtils.asMap(
+                                        "folder",
+                                        "jobportal/profile-images"
+                                )
+                        );
 
-                Path imagePath = profileDir.resolve(imageName);
+                String imageUrl =
+                        imageUpload.get("secure_url")
+                                .toString();
 
-                profileImage.transferTo(imagePath.toFile());
-
-
-                profile.setProfileImageUrl(
-                        "/uploads/profile-images/" + imageName
-                );
+                profile.setProfileImageUrl(imageUrl);
             }
 
             // ================= RESUME =================
 
             if (resume != null && !resume.isEmpty()) {
 
-                String resumeName = timestamp + "_"
-                        + resume.getOriginalFilename()
-                        .replaceAll("[^a-zA-Z0-9.-]", "_");
+                Map<?, ?> resumeUpload =
+                        cloudinary.uploader().upload(
+                                resume.getBytes(),
+                                ObjectUtils.asMap(
+                                        "resource_type",
+                                        "raw",
+                                        "folder",
+                                        "jobportal/resumes"
+                                )
+                        );
 
-                Path resumePath =
-                        resumeDir.resolve(resumeName);
-
-                resume.transferTo(resumePath.toFile());
+                String resumeUrl =
+                        resumeUpload.get("secure_url")
+                                .toString();
 
                 String extractedText = "";
 
                 try (PDDocument document =
-                             Loader.loadPDF(resumePath.toFile())) {
+                             Loader.loadPDF(resume.getBytes())) {
 
                     PDFTextStripper stripper =
                             new PDFTextStripper();
@@ -390,9 +388,7 @@ public class UserServiceImpl implements UserService {
 
                 profile.setResumeText(extractedText);
 
-                profile.setResumeUrl(
-                        "/uploads/resumes/" + resumeName
-                );
+                profile.setResumeUrl(resumeUrl);
 
                 profile.setResumeFileName(
                         resume.getOriginalFilename()
@@ -423,6 +419,11 @@ public class UserServiceImpl implements UserService {
                         new RuntimeException("Student not found"));
 
         StudentProfile profile = student.getStudentProfile();
+//        StudentProfile profile = student.getStudentProfile();
+
+        if (profile == null) {
+            throw new RuntimeException("Student profile not found");
+        }
 
         StudentProfileResponse dto =
                 new StudentProfileResponse();
