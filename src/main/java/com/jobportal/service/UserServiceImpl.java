@@ -361,7 +361,7 @@ public class UserServiceImpl implements UserService {
                         cloudinary.uploader().upload(
                                 resume.getBytes(),
                                 ObjectUtils.asMap(
-                                        "resource_type", "auto",
+                                        "resource_type", "raw",
                                         "folder", "jobportal/resumes",
                                         "use_filename", true,
                                         "unique_filename", true
@@ -369,9 +369,7 @@ public class UserServiceImpl implements UserService {
                         );
 
                 String resumeUrl =
-                        resumeUpload.get("secure_url")
-                                .toString();
-
+                        resumeUpload.get("secure_url").toString();
                 String extractedText = "";
 
                 try (PDDocument document =
