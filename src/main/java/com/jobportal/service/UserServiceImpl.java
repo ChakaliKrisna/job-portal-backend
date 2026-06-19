@@ -36,7 +36,6 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserRepository userRepository;
-    @Autowired
     private final Cloudinary cloudinary;
     @Autowired
     private CompanyRepository companyRepository;
