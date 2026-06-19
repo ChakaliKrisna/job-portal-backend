@@ -5,6 +5,9 @@ import com.jobportal.entity.*;
 import com.jobportal.repository.CompanyRepository;
 import com.jobportal.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.tika.Tika;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -351,6 +354,7 @@ public class UserServiceImpl implements UserService {
 
                 profileImage.transferTo(imagePath.toFile());
 
+
                 profile.setProfileImageUrl(
                         "/uploads/profile-images/" + imageName
                 );
@@ -364,11 +368,27 @@ public class UserServiceImpl implements UserService {
                         + resume.getOriginalFilename()
                         .replaceAll("[^a-zA-Z0-9.-]", "_");
 
-                Path resumePath = resumeDir.resolve(resumeName);
-
-                System.out.println("Resume stored at: " + resumePath);
+                Path resumePath =
+                        resumeDir.resolve(resumeName);
 
                 resume.transferTo(resumePath.toFile());
+
+                String extractedText = "";
+
+                try (PDDocument document =
+                             Loader.loadPDF(resumePath.toFile())) {
+
+                    PDFTextStripper stripper =
+                            new PDFTextStripper();
+
+                    extractedText =
+                            stripper.getText(document);
+
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+
+                profile.setResumeText(extractedText);
 
                 profile.setResumeUrl(
                         "/uploads/resumes/" + resumeName
@@ -392,7 +412,11 @@ public class UserServiceImpl implements UserService {
                     e
             );
         }
-    } public StudentProfileResponse getStudentProfileByPublicId(String publicId) {
+    }
+
+
+
+    public StudentProfileResponse getStudentProfileByPublicId(String publicId) {
 
         User student = userRepository.findByPublicId(publicId)
                 .orElseThrow(() ->
