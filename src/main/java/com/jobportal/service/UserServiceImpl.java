@@ -306,74 +306,93 @@ public class UserServiceImpl implements UserService {
 //    private final UserRepository userRepository;
 //    private final StudentProfileRepository studentProfileRepository;
 
+    @Override
     public String uploadStudentFiles(
             String email,
             MultipartFile profileImage,
             MultipartFile resume
     ) {
+
         try {
-            String basePath = System.getProperty("java.io.tmpdir") + "/uploads/";
-            Path profileDir = Paths.get(basePath + "profile-images/");
-            Path resumeDir = Paths.get(basePath + "resumes/");
 
+            String basePath = System.getProperty("user.dir") + "/uploads/";
 
+            Path profileDir = Paths.get(basePath, "profile-images");
+            Path resumeDir = Paths.get(basePath, "resumes");
 
-            // Create directories safely
             Files.createDirectories(profileDir);
             Files.createDirectories(resumeDir);
 
-            // ✅ OPTIMIZATION 1: Bypass intermediate User query. Fetch the profile directly.
-            StudentProfile profile = studentProfileRepository.findByUser_Email(email)
+            StudentProfile profile = studentProfileRepository
+                    .findByUser_Email(email)
                     .orElseGet(() -> {
+
                         User user = userRepository.findByEmail(email)
-                                .orElseThrow(() -> new RuntimeException("User not found"));
+                                .orElseThrow(() ->
+                                        new RuntimeException("User not found"));
+
                         StudentProfile newProfile = new StudentProfile();
                         newProfile.setUser(user);
+
                         return newProfile;
                     });
 
             long timestamp = System.currentTimeMillis();
 
-            // ================= SAVE PROFILE IMAGE =================
+            // ================= PROFILE IMAGE =================
+
             if (profileImage != null && !profileImage.isEmpty()) {
-                // Use safe, sanitized filenames
-                String imgName = timestamp + "_" + profileImage.getOriginalFilename().replaceAll("[^a-zA-Z0-9.-]", "_");
-                Path imgPath = profileDir.resolve(imgName);
 
-                // ✅ OPTIMIZATION 2: Native transfer handles system I/O directly without buffering full bytes to RAM
-                profileImage.transferTo(imgPath.toFile());
+                String imageName = timestamp + "_"
+                        + profileImage.getOriginalFilename()
+                        .replaceAll("[^a-zA-Z0-9.-]", "_");
 
-                profile.setProfileImageUrl("/uploads/profile-images/" + imgName);
+                Path imagePath = profileDir.resolve(imageName);
+
+                profileImage.transferTo(imagePath.toFile());
+
+                profile.setProfileImageUrl(
+                        "/uploads/profile-images/" + imageName
+                );
             }
 
-            // ================= SAVE RESUME =================
-            boolean hasNewResume = resume != null && !resume.isEmpty();
-            if (hasNewResume) {
-                String resumeName = timestamp + "_" + resume.getOriginalFilename().replaceAll("[^a-zA-Z0-9.-]", "_");
+            // ================= RESUME =================
+
+            if (resume != null && !resume.isEmpty()) {
+
+                String resumeName = timestamp + "_"
+                        + resume.getOriginalFilename()
+                        .replaceAll("[^a-zA-Z0-9.-]", "_");
+
                 Path resumePath = resumeDir.resolve(resumeName);
 
-                // Native high-speed transfer
+                System.out.println("Resume stored at: " + resumePath);
+
                 resume.transferTo(resumePath.toFile());
 
-                profile.setResumeUrl("/uploads/resumes/" + resumeName);
-                profile.setResumeFileName(resume.getOriginalFilename());
+                profile.setResumeUrl(
+                        "/uploads/resumes/" + resumeName
+                );
+
+                profile.setResumeFileName(
+                        resume.getOriginalFilename()
+                );
             }
 
-            // Save metadata fields first to secure an entity ID
             profile = studentProfileRepository.save(profile);
-
-            // ================= ASYNC EXTRACT TEXT =================
-            if (hasNewResume) {
-                // ✅ OPTIMIZATION 3: Hand off the processing task to the worker pool
-                resumeAsyncTaskService.extractTextInBackground(profile.getId(), resume);
-            }
 
             return profile.getResumeUrl();
 
         } catch (Exception e) {
-            throw new RuntimeException("File upload processing faulted", e);
+
+            e.printStackTrace();
+
+            throw new RuntimeException(
+                    "File upload processing faulted",
+                    e
+            );
         }
-    }   public StudentProfileResponse getStudentProfileByPublicId(String publicId) {
+    } public StudentProfileResponse getStudentProfileByPublicId(String publicId) {
 
         User student = userRepository.findByPublicId(publicId)
                 .orElseThrow(() ->
