@@ -260,6 +260,7 @@ public class UserServiceImpl implements UserService {
         response.setLocation(profile.getLocation());
         response.setHeadline(profile.getHeadline());
 
+
         response.setSkills(
                 profile.getSkills()
                         .stream()
@@ -268,8 +269,10 @@ public class UserServiceImpl implements UserService {
         );
         response.setEducation(profile.getEducation());
         response.setExperience(profile.getExperience());
-
         response.setResumeUrl(profile.getResumeUrl());
+        response.setProfileImageUrl(profile.getProfileImageUrl());
+
+//        response.setResumeUrl(profile.getResumeUrl());
 
         response.setGithubUrl(profile.getGithubUrl());
         response.setLinkedinUrl(profile.getLinkedinUrl());
