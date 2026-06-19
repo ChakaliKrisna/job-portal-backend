@@ -357,15 +357,14 @@ public class UserServiceImpl implements UserService {
             // ================= RESUME =================
 
             if (resume != null && !resume.isEmpty()) {
-
                 Map<?, ?> resumeUpload =
                         cloudinary.uploader().upload(
                                 resume.getBytes(),
                                 ObjectUtils.asMap(
-                                        "resource_type",
-                                        "raw",
-                                        "folder",
-                                        "jobportal/resumes"
+                                        "resource_type", "auto",
+                                        "folder", "jobportal/resumes",
+                                        "use_filename", true,
+                                        "unique_filename", true
                                 )
                         );
 
