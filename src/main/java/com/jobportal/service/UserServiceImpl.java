@@ -357,15 +357,18 @@ public class UserServiceImpl implements UserService {
             // ================= RESUME =================
 
             if (resume != null && !resume.isEmpty()) {
+                String originalName = resume.getOriginalFilename();
+                String fileNameWithoutExtension =
+                        originalName.substring(0, originalName.lastIndexOf("."));
+
                 Map<?, ?> resumeUpload =
                         cloudinary.uploader().upload(
                                 resume.getBytes(),
                                 ObjectUtils.asMap(
                                         "resource_type", "raw",
                                         "folder", "jobportal/resumes",
-                                        "use_filename", true,
-                                        "unique_filename", true,
-                                        "filename_override", resume.getOriginalFilename()
+                                        "public_id", fileNameWithoutExtension,
+                                        "format", "pdf"
                                 )
                         );
                 String resumeUrl =
