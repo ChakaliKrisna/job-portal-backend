@@ -363,8 +363,9 @@ public class UserServiceImpl implements UserService {
                                 ObjectUtils.asMap(
                                         "resource_type", "raw",
                                         "folder", "jobportal/resumes",
-                                        "use_filename", true,
-                                        "unique_filename", true
+                                        "public_id",
+                                        resume.getOriginalFilename()
+                                                .replace(".pdf", "")
                                 )
                         );
 
