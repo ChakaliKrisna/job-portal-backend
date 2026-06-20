@@ -37,6 +37,8 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserRepository userRepository;
     private final Cloudinary cloudinary;
+
+    private final ResumeExtractionService resumeExtractionService;
     @Autowired
     private CompanyRepository companyRepository;
 
@@ -336,34 +338,21 @@ public class UserServiceImpl implements UserService {
 
             // ================= PROFILE IMAGE =================
 
-            if (profileImage != null && !profileImage.isEmpty()) {
-
-                Map<?, ?> imageUpload =
-                        cloudinary.uploader().upload(
-                                profileImage.getBytes(),
-                                ObjectUtils.asMap(
-                                        "folder",
-                                        "jobportal/profile-images"
-                                )
-                        );
-
-                String imageUrl =
-                        imageUpload.get("secure_url")
-                                .toString();
-
-                profile.setProfileImageUrl(imageUrl);
-            }
-
-            // ================= RESUME =================
-
             if (resume != null && !resume.isEmpty()) {
+
+                byte[] pdfBytes = resume.getBytes();
+
                 String originalName = resume.getOriginalFilename();
+
                 String fileNameWithoutExtension =
-                        originalName.substring(0, originalName.lastIndexOf("."));
+                        originalName.substring(
+                                0,
+                                originalName.lastIndexOf(".")
+                        );
 
                 Map<?, ?> resumeUpload =
                         cloudinary.uploader().upload(
-                                resume.getBytes(),
+                                pdfBytes,
                                 ObjectUtils.asMap(
                                         "resource_type", "raw",
                                         "folder", "jobportal/resumes",
@@ -371,29 +360,21 @@ public class UserServiceImpl implements UserService {
                                         "format", "pdf"
                                 )
                         );
+
                 String resumeUrl =
-                        resumeUpload.get("secure_url").toString();
-                String extractedText = "";
-
-                try (PDDocument document =
-                             Loader.loadPDF(resume.getBytes())) {
-
-                    PDFTextStripper stripper =
-                            new PDFTextStripper();
-
-                    extractedText =
-                            stripper.getText(document);
-
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-
-                profile.setResumeText(extractedText);
+                        resumeUpload.get("secure_url")
+                                .toString();
 
                 profile.setResumeUrl(resumeUrl);
 
-                profile.setResumeFileName(
-                        resume.getOriginalFilename()
+                profile.setResumeFileName(originalName);
+
+                // Store bytes temporarily for async processing
+                profile = studentProfileRepository.save(profile);
+
+                resumeExtractionService.extractResumeText(
+                        profile.getId(),
+                        pdfBytes
                 );
             }
 

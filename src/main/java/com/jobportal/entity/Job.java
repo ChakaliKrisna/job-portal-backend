@@ -25,7 +25,7 @@ public class Job {
     private Long id; // INTERNAL ONLY ❌ never expose
 
     // ⭐ PUBLIC ID (USED IN API)
-    @Column(unique = true, nullable = false, length = 50)
+    @Column(unique = true, nullable = false)
     private String publicId;
 
     // 🔹 BASIC DETAILS

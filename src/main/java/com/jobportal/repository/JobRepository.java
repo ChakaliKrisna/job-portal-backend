@@ -18,8 +18,15 @@ import java.util.Optional;
 @Repository
 public interface JobRepository extends JpaRepository<Job, Long>, JpaSpecificationExecutor<Job> {
 
-    Optional<Job> findByPublicId(String publicId);
-
+    @Query("""
+SELECT j
+FROM Job j
+LEFT JOIN FETCH j.company
+LEFT JOIN FETCH j.recruiter
+LEFT JOIN FETCH j.skillsRequired
+WHERE j.publicId = :publicId
+""")
+    Optional<Job> findByPublicId(@Param("publicId") String publicId);
     Optional<Job> findByTitleAndCompanyAndLocation(String title, Company company, String location);
 
     @Query("""
