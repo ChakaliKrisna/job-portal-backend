@@ -200,8 +200,9 @@ public class ApplicationController {
     public ResponseEntity<Double> getMatchScore(
             @PathVariable String jobId
     ) {
+        Double score =0.0;
         return ResponseEntity.ok(
-                service.calculateMatchScore(jobId, Collections.emptyList())
-        );
+                score);
+
     }
 }
