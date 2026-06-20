@@ -67,7 +67,7 @@ public class SecurityConfig {
 
                         // Public Company APIs
                         .requestMatchers(HttpMethod.GET, "/job-portal/company/**").permitAll()
-
+                        .requestMatchers("/actuator/health").permitAll()
                         // Preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
