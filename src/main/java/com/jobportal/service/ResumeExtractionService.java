@@ -50,4 +50,5 @@ public class ResumeExtractionService {
             e.printStackTrace();
         }
     }
+
 }

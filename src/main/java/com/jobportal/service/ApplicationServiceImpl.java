@@ -105,7 +105,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
 
         app.setResumeUrl(resume);
-        app.setResumeText(profile.getResumeText());
+//        app.setResumeText(profile.getResumeText());
 
         // ================= Cover Letter =================
         String coverLetter = request.getCoverLetter();
@@ -160,23 +160,9 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         app.setSkills(skillEntities);
 
-        // ================= Match Score =================
-        List<String> jobSkills =
-                job.getSkillsRequired()
-                        .stream()
-                        .map(JobSkill::getSkill)
-                        .toList();
 
-        double score = calculateScore(
-                userSkills,
-                extraSkills,
-                jobSkills,
-                profile.getResumeText(),
-                job.getDescription()
-        );
-
-        app.setMatchScore(score);
-
+//        app.setMatchScore(score);
+        app.setMatchScore(0.0);
         // ================= Optional Fields =================
         app.setAvailability(request.getAvailability());
         app.setWorkPreference(request.getWorkPreference());
@@ -1022,6 +1008,8 @@ public class ApplicationServiceImpl implements ApplicationService {
                         pageable
                 );
 
+        applications.forEach(this::calculateScoreIfNeeded);
+
         return applications.map(app -> ApplicationCandidateResponse.builder()
                 .applicationId(app.getPublicId())
 
@@ -1091,7 +1079,62 @@ public class ApplicationServiceImpl implements ApplicationService {
         );
     }
 //    @Override
+private void calculateScoreIfNeeded(Application app) {
 
+    if (app.getMatchScore() != null &&
+            app.getMatchScore() > 0) {
+        return;
+    }
 
+    StudentProfile profile =
+            app.getCandidate().getStudentProfile();
 
+    if (profile == null) {
+        app.setMatchScore(0.0);
+        applicationRepo.save(app);
+        return;
+    }
+
+    List<String> userSkills =
+            Optional.ofNullable(profile.getSkills())
+                    .orElse(Collections.emptyList())
+                    .stream()
+                    .map(StudentSkill::getSkill)
+                    .toList();
+
+    List<String> extraSkills =
+            Optional.ofNullable(app.getSkills())
+                    .orElse(Collections.emptyList())
+                    .stream()
+                    .map(ApplicationSkill::getSkill)
+                    .toList();
+
+    List<String> jobSkills =
+            Optional.ofNullable(app.getJob().getSkillsRequired())
+                    .orElse(Collections.emptyList())
+                    .stream()
+                    .map(JobSkill::getSkill)
+                    .toList();
+
+    String resumeText =
+            Optional.ofNullable(profile.getResumeText())
+                    .orElse("");
+
+    if (resumeText.isBlank()) {
+        return;
+    }
+
+    double score = calculateScore(
+            userSkills,
+            extraSkills,
+            jobSkills,
+            resumeText,
+            app.getJob().getDescription()
+    );
+
+    app.setMatchScore(score);
+
+    applicationRepo.save(app);
+
+}
 }
